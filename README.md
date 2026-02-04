@@ -42,7 +42,17 @@ Applica `register_post_meta_args` per forzare `show_in_rest => true` sui meta Yo
 - PHP 7.4+
 - Yoast SEO o FP SEO Manager (opzionale, per gestire i meta SEO)
 
-### Passi
+### Via Git Updater (consigliato)
+
+1. Installa [Git Updater](https://github.com/afragen/git-updater)
+2. Vai in **Settings → Git Updater → Install Plugin**
+3. Inserisci: `franpass87/FP-Remote-Bridge`
+4. Clicca **Install Plugin**
+5. Attiva il plugin da **Plugins****
+
+*(Non serve eseguire `composer install`: la cartella `vendor/` è inclusa nel repository.)*
+
+### Installazione manuale
 
 1. Scarica o clona il plugin in `wp-content/plugins/FP-Remote-Bridge/`
 2. Esegui `composer install --no-dev` nella cartella del plugin
