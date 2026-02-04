@@ -27,6 +27,9 @@ class RestEndpoint
         '_fp_seo_focus_keyword',
         '_fp_seo_meta_canonical',
         '_fp_seo_meta_robots',
+        '_fp_seo_geo_claims',
+        '_fp_seo_geo_expose',
+        '_fp_seo_geo_no_ai_reuse',
         '_yoast_wpseo_title',
         '_yoast_wpseo_metadesc',
         '_yoast_wpseo_focuskw',
@@ -101,7 +104,9 @@ class RestEndpoint
                     continue;
                 }
 
-                if (strpos($key, 'canonical') !== false) {
+                if (is_array($value)) {
+                    $sanitized = array_map('sanitize_text_field', $value);
+                } elseif (strpos($key, 'canonical') !== false) {
                     $sanitized = esc_url_raw($value);
                 } else {
                     $sanitized = sanitize_text_field($value);

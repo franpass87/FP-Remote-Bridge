@@ -48,7 +48,7 @@ Applica `register_post_meta_args` per forzare `show_in_rest => true` sui meta Yo
 2. Vai in **Settings → Git Updater → Install Plugin**
 3. Inserisci: `franpass87/FP-Remote-Bridge`
 4. Clicca **Install Plugin**
-5. Attiva il plugin da **Plugins****
+5. Attiva il plugin da **Plugins**
 
 *(Non serve eseguire `composer install`: la cartella `vendor/` è inclusa nel repository.)*
 
