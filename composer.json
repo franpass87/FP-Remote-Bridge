@@ -1,0 +1,26 @@
+{
+    "name": "fp/remote-bridge",
+    "description": "Connettore per siti remoti che ricevono pubblicazioni da FP Publisher e altri prodotti FP",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "version": "1.0.0",
+    "authors": [
+        {
+            "name": "Francesco Passeri",
+            "email": "info@francescopasseri.com",
+            "homepage": "https://www.francescopasseri.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "FP\\RemoteBridge\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
