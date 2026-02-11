@@ -36,6 +36,9 @@ class Plugin
     {
         SeoRest::init();
         add_action('rest_api_init', [RestEndpoint::class, 'register']);
+        add_action('rest_api_init', [PluginUpdateEndpoint::class, 'register']);
+        Settings::init();
+        MasterSync::init();
     }
 
     /**
