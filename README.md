@@ -75,7 +75,7 @@ Applica `register_post_meta_args` per forzare `show_in_rest => true` sui meta Yo
 
 ### Via FP Updater (consigliato)
 
-1. Installa [FP Updater](https://github.com/franpass87/FP-GIT-Updater)
+1. Installa [FP Updater](https://github.com/franpass87/FP-Updater)
 2. Vai in **FP Updater → Impostazioni** (o usalo per installare questo plugin da GitHub)
 3. Inserisci: `franpass87/FP-Remote-Bridge`
 4. Clicca **Install Plugin**
