@@ -27,16 +27,16 @@ class MasterSync
     public static function init(): void
     {
         add_action(self::CRON_HOOK, [self::class, 'run_sync']);
-        add_action('admin_init', [self::class, 'maybe_schedule_cron']);
-        add_action('update_option_' . self::OPTION_MASTER_URL, [self::class, 'maybe_schedule_cron']);
-        add_action('update_option_' . self::OPTION_MASTER_SECRET, [self::class, 'maybe_schedule_cron']);
-        add_action('update_option_' . self::OPTION_SYNC_INTERVAL, [self::class, 'maybe_schedule_cron']);
+        add_action('admin_init', [self::class, 'ensure_cron_scheduled']);
+        add_action('update_option_' . self::OPTION_MASTER_URL, [self::class, 'reschedule_cron']);
+        add_action('update_option_' . self::OPTION_MASTER_SECRET, [self::class, 'reschedule_cron']);
+        add_action('update_option_' . self::OPTION_SYNC_INTERVAL, [self::class, 'reschedule_cron']);
     }
 
     /**
-     * Schedula il cron se configurato; riesegue su cambio opzioni per rispettare nuovo intervallo
+     * Verifica che il cron sia schedulato (admin_init). Non rischedula se gia attivo con lo stesso intervallo.
      */
-    public static function maybe_schedule_cron(): void
+    public static function ensure_cron_scheduled(): void
     {
         $url = get_option(self::OPTION_MASTER_URL, '');
         $secret = get_option(self::OPTION_MASTER_SECRET, '');
@@ -46,8 +46,25 @@ class MasterSync
         }
 
         $interval = get_option(self::OPTION_SYNC_INTERVAL, 'hourly');
+
+        if (wp_next_scheduled(self::CRON_HOOK)) {
+            $current = wp_get_schedule(self::CRON_HOOK);
+            if ($current === $interval) {
+                return;
+            }
+        }
+
         self::unschedule_cron();
         wp_schedule_event(time() + 60, $interval, self::CRON_HOOK);
+    }
+
+    /**
+     * Forza rischedulazione (chiamato su cambio opzioni)
+     */
+    public static function reschedule_cron(): void
+    {
+        self::unschedule_cron();
+        self::ensure_cron_scheduled();
     }
 
     public static function unschedule_cron(): void

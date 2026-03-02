@@ -7,7 +7,14 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'FP\\RemoteBridge\\BackupEndpoint' => $baseDir . '/includes/BackupEndpoint.php',
+    'FP\\RemoteBridge\\BackupService' => $baseDir . '/includes/BackupService.php',
+    'FP\\RemoteBridge\\BackupSync' => $baseDir . '/includes/BackupSync.php',
+    'FP\\RemoteBridge\\MasterSync' => $baseDir . '/includes/MasterSync.php',
     'FP\\RemoteBridge\\Plugin' => $baseDir . '/includes/Plugin.php',
+    'FP\\RemoteBridge\\PluginInstaller' => $baseDir . '/includes/PluginInstaller.php',
+    'FP\\RemoteBridge\\PluginUpdateEndpoint' => $baseDir . '/includes/PluginUpdateEndpoint.php',
     'FP\\RemoteBridge\\RestEndpoint' => $baseDir . '/includes/RestEndpoint.php',
     'FP\\RemoteBridge\\SeoRest' => $baseDir . '/includes/SeoRest.php',
+    'FP\\RemoteBridge\\Settings' => $baseDir . '/includes/Settings.php',
 );

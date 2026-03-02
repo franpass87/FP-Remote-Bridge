@@ -45,6 +45,13 @@ if (file_exists($autoload_file)) {
 }
 
 use FP\RemoteBridge\Plugin;
+use FP\RemoteBridge\MasterSync;
+use FP\RemoteBridge\BackupSync;
+
+register_deactivation_hook(__FILE__, function () {
+    MasterSync::unschedule_cron();
+    BackupSync::unschedule_cron();
+});
 
 add_action('plugins_loaded', function() {
     load_plugin_textdomain('fp-remote-bridge', false, dirname(FP_REMOTE_BRIDGE_BASENAME) . '/languages');

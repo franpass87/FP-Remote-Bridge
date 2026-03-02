@@ -22,9 +22,16 @@ class ComposerStaticInite9015d6c5f32f144901b5c86503d3597
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'FP\\RemoteBridge\\BackupEndpoint' => __DIR__ . '/../..' . '/includes/BackupEndpoint.php',
+        'FP\\RemoteBridge\\BackupService' => __DIR__ . '/../..' . '/includes/BackupService.php',
+        'FP\\RemoteBridge\\BackupSync' => __DIR__ . '/../..' . '/includes/BackupSync.php',
+        'FP\\RemoteBridge\\MasterSync' => __DIR__ . '/../..' . '/includes/MasterSync.php',
         'FP\\RemoteBridge\\Plugin' => __DIR__ . '/../..' . '/includes/Plugin.php',
+        'FP\\RemoteBridge\\PluginInstaller' => __DIR__ . '/../..' . '/includes/PluginInstaller.php',
+        'FP\\RemoteBridge\\PluginUpdateEndpoint' => __DIR__ . '/../..' . '/includes/PluginUpdateEndpoint.php',
         'FP\\RemoteBridge\\RestEndpoint' => __DIR__ . '/../..' . '/includes/RestEndpoint.php',
         'FP\\RemoteBridge\\SeoRest' => __DIR__ . '/../..' . '/includes/SeoRest.php',
+        'FP\\RemoteBridge\\Settings' => __DIR__ . '/../..' . '/includes/Settings.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
