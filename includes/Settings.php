@@ -111,7 +111,11 @@ class Settings
         $redirect = add_query_arg([
             'fp_bridge_sync_result' => $result['success'] ? 'ok' : 'error',
             'fp_bridge_updates' => $result['updates_available'] ?? false ? '1' : '0',
+            'fp_bridge_deploy_authorized' => $result['deploy_authorized'] ?? false ? '1' : '0',
         ], admin_url('options-general.php?page=fp-remote-bridge'));
+        if (!$result['success'] && !empty($result['error'])) {
+            $redirect = add_query_arg('fp_bridge_sync_error', rawurlencode($result['error']), $redirect);
+        }
         wp_safe_redirect($redirect);
         exit;
     }
@@ -147,7 +151,9 @@ class Settings
         $endpoint_url = PluginUpdateEndpoint::get_endpoint_url();
 
         $sync_result = isset($_GET['fp_bridge_sync_result']) ? sanitize_text_field($_GET['fp_bridge_sync_result']) : '';
+        $sync_error = isset($_GET['fp_bridge_sync_error']) ? sanitize_text_field(wp_unslash(urldecode($_GET['fp_bridge_sync_error']))) : '';
         $updates_done = isset($_GET['fp_bridge_updates']) && $_GET['fp_bridge_updates'] === '1';
+        $deploy_authorized = isset($_GET['fp_bridge_deploy_authorized']) && $_GET['fp_bridge_deploy_authorized'] === '1';
         $backup_result = isset($_GET['fp_bridge_backup_result']) ? sanitize_text_field($_GET['fp_bridge_backup_result']) : '';
         $backup_error = isset($_GET['fp_bridge_backup_error']) ? sanitize_text_field(urldecode($_GET['fp_bridge_backup_error'])) : '';
         $backup_enabled = get_option(BackupSync::OPTION_BACKUP_ENABLED, false);
@@ -166,12 +172,20 @@ class Settings
 
             <?php if ($sync_result === 'ok') : ?>
                 <div class="notice notice-success"><p>
-                    <?php echo $updates_done
-                        ? esc_html__('Sincronizzazione completata. Aggiornamenti installati.', 'fp-remote-bridge')
-                        : esc_html__('Sincronizzazione completata. Nessun aggiornamento disponibile.', 'fp-remote-bridge'); ?>
+                    <?php
+                    if ($updates_done && !$deploy_authorized) {
+                        echo esc_html(__('Sincronizzazione completata. Aggiornamenti disponibili ma il Master non ha ancora autorizzato la distribuzione. Attendi che il Master clicchi "Distribuisci ai client".', 'fp-remote-bridge'));
+                    } elseif ($updates_done) {
+                        echo esc_html(__('Sincronizzazione completata. Aggiornamenti installati.', 'fp-remote-bridge'));
+                    } else {
+                        echo esc_html(__('Sincronizzazione completata. Nessun aggiornamento disponibile.', 'fp-remote-bridge'));
+                    }
+                    ?>
                 </p></div>
             <?php elseif ($sync_result === 'error') : ?>
-                <div class="notice notice-error"><p><?php esc_html_e('Errore durante la sincronizzazione. Verifica URL Master e secret.', 'fp-remote-bridge'); ?></p></div>
+                <div class="notice notice-error"><p><strong><?php esc_html_e('Errore sincronizzazione:', 'fp-remote-bridge'); ?></strong>
+                    <?php echo $sync_error ? esc_html($sync_error) : esc_html__('Verifica URL Master e secret.', 'fp-remote-bridge'); ?>
+                </p></div>
             <?php endif; ?>
 
             <?php if ($backup_result === 'ok') : ?>
@@ -193,7 +207,7 @@ class Settings
                         <span class="dashicons dashicons-networking"></span>
                         <?php esc_html_e('Comunicazione con Master', 'fp-remote-bridge'); ?>
                     </h2>
-                    <p class="fp-bridge-card-desc"><?php esc_html_e('Il sito contatta periodicamente il Master per verificare aggiornamenti e li installa in automatico. Non serve FP Updater sul client.', 'fp-remote-bridge'); ?></p>
+                    <p class="fp-bridge-card-desc"><?php esc_html_e('Il sito contatta periodicamente il Master per verificare aggiornamenti. Gli aggiornamenti vengono installati SOLO quando il Master autorizza la distribuzione (pulsante "Distribuisci ai client"). Non serve FP Updater sul client.', 'fp-remote-bridge'); ?></p>
 
                 <table class="form-table" role="presentation">
                     <tr>
@@ -306,7 +320,7 @@ class Settings
                                    value="<?php echo esc_attr($backup_client_id); ?>"
                                    class="regular-text" placeholder="<?php echo esc_attr(parse_url(site_url(), PHP_URL_HOST) ?: 'client'); ?>" />
                             <p class="description">
-                                <?php esc_html_e('Opzionale. Usato per organizzare i backup sul Master. Default: dominio del sito.', 'fp-remote-bridge'); ?>
+                                <?php esc_html_e('Opzionale. Usato per organizzare i backup sul Master e identificare questo sito nella lista "Client collegati". Default: dominio del sito.', 'fp-remote-bridge'); ?>
                             </p>
                         </td>
                     </tr>
