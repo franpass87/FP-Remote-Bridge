@@ -96,14 +96,20 @@ class MasterSync
             $endpoint = preg_replace('#/wp-json/.*$#', '/wp-json/fp-git-updater/v1/master-updates-status', $endpoint);
         }
 
-        // Invia lista plugin installati e secret/client_id come query (fallback: alcuni proxy tolgono header custom)
-        $installed_slugs = self::get_installed_plugin_slugs();
+        // client_id e secret PRIMA (essenziali) - installed_plugins può essere lunghissimo
+        $client_id = self::get_client_identifier();
         $args_query = [
             'secret' => $secret,
-            'client_id' => self::get_client_identifier(),
+            'client_id' => $client_id,
+            '_t' => time(), // cache-busting: evita risposta in cache
         ];
+        $installed_slugs = self::get_installed_plugin_slugs();
         if (!empty($installed_slugs)) {
-            $args_query['installed_plugins'] = implode(',', $installed_slugs);
+            $plugins_str = implode(',', array_slice($installed_slugs, 0, 80)); // max 80 per evitare URL troppo lunga
+            if (strlen($plugins_str) > 1500) {
+                $plugins_str = substr($plugins_str, 0, 1500); // taglia se eccede
+            }
+            $args_query['installed_plugins'] = $plugins_str;
         }
         $endpoint = add_query_arg($args_query, $endpoint);
 
