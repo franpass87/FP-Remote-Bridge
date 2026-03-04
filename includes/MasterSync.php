@@ -254,7 +254,7 @@ class MasterSync
             $all = get_plugins();
             foreach ($all as $path => $data) {
                 if (strpos($path, '/') !== false) {
-                    $slug = dirname($path);
+                    $slug = strtolower(dirname($path));
                     $version = isset($data['Version']) ? $data['Version'] : '';
                     $entries[$slug] = $slug . (!empty($version) ? ':' . $version : '');
                 }
