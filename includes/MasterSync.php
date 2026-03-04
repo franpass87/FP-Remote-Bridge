@@ -238,28 +238,30 @@ class MasterSync
     }
 
     /**
-     * Restituisce gli slug dei plugin installati (cartelle in wp-content/plugins).
-     * Usato per inviare al Master la lista "chi ha cosa" (install vs update).
+     * Restituisce gli slug dei plugin installati nel formato "slug:version".
+     * Usato per inviare al Master la lista "chi ha cosa" con le versioni installate.
      *
      * @return array<string>
      */
     public static function get_installed_plugin_slugs(): array
     {
-        $slugs = [];
+        $entries = [];
 
         if (!function_exists('get_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
         if (function_exists('get_plugins')) {
             $all = get_plugins();
-            foreach (array_keys($all) as $path) {
+            foreach ($all as $path => $data) {
                 if (strpos($path, '/') !== false) {
-                    $slugs[] = dirname($path);
+                    $slug = dirname($path);
+                    $version = isset($data['Version']) ? $data['Version'] : '';
+                    $entries[$slug] = $slug . (!empty($version) ? ':' . $version : '');
                 }
             }
         }
 
-        return array_unique(array_filter($slugs));
+        return array_values(array_unique(array_filter($entries)));
     }
 
     /**
