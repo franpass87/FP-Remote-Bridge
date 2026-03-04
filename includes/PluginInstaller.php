@@ -122,7 +122,12 @@ class PluginInstaller
             return ['error' => 'Struttura plugin non riconosciuta nello zip'];
         }
 
+        // Cerca una cartella esistente con lo stesso nome (case-insensitive su filesystem Linux)
         $target_dir = WP_PLUGIN_DIR . '/' . $slug;
+        $existing_dir = self::find_existing_plugin_dir($slug);
+        if ($existing_dir && $existing_dir !== $target_dir) {
+            $target_dir = $existing_dir;
+        }
         $backup_dir = null;
 
         if (file_exists($target_dir) && is_dir($target_dir)) {
@@ -152,6 +157,22 @@ class PluginInstaller
         }
 
         return true;
+    }
+
+    /**
+     * Cerca una cartella plugin già esistente con lo stesso slug (case-insensitive).
+     * Utile su filesystem Linux dove "FP-Remote-Bridge" != "fp-remote-bridge".
+     */
+    private static function find_existing_plugin_dir(string $slug): ?string
+    {
+        $slug_lower = strtolower($slug);
+        $plugin_dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        foreach ($plugin_dirs as $dir) {
+            if (strtolower(basename($dir)) === $slug_lower) {
+                return $dir;
+            }
+        }
+        return null;
     }
 
     /**
