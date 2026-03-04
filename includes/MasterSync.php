@@ -26,11 +26,32 @@ class MasterSync
      */
     public static function init(): void
     {
+        add_filter('cron_schedules', [self::class, 'add_cron_intervals']);
         add_action(self::CRON_HOOK, [self::class, 'run_sync']);
         add_action('admin_init', [self::class, 'ensure_cron_scheduled']);
         add_action('update_option_' . self::OPTION_MASTER_URL, [self::class, 'reschedule_cron']);
         add_action('update_option_' . self::OPTION_MASTER_SECRET, [self::class, 'reschedule_cron']);
         add_action('update_option_' . self::OPTION_SYNC_INTERVAL, [self::class, 'reschedule_cron']);
+    }
+
+    /**
+     * Aggiunge intervalli cron personalizzati
+     */
+    public static function add_cron_intervals(array $schedules): array
+    {
+        if (!isset($schedules['every_minute'])) {
+            $schedules['every_minute'] = [
+                'interval' => 60,
+                'display'  => __('Ogni minuto', 'fp-remote-bridge'),
+            ];
+        }
+        if (!isset($schedules['every_5_minutes'])) {
+            $schedules['every_5_minutes'] = [
+                'interval' => 300,
+                'display'  => __('Ogni 5 minuti', 'fp-remote-bridge'),
+            ];
+        }
+        return $schedules;
     }
 
     /**
@@ -45,7 +66,7 @@ class MasterSync
             return;
         }
 
-        $interval = get_option(self::OPTION_SYNC_INTERVAL, 'hourly');
+        $interval = get_option(self::OPTION_SYNC_INTERVAL, 'every_minute');
 
         if (wp_next_scheduled(self::CRON_HOOK)) {
             $current = wp_get_schedule(self::CRON_HOOK);
