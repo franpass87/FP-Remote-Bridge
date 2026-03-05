@@ -92,10 +92,18 @@ class SyncEndpoint
                 }
             }
 
-            // Forza cleanup cartelle duplicate
+            // Forza cleanup cartelle duplicate alla prossima richiesta (non ora):
+            // se il Bridge stesso è stato aggiornato, active_plugins è stato modificato
+            // nel DB ma PHP ha ancora il vecchio valore in memoria. Chiamare cleanup_duplicate_dirs()
+            // ora rimuoverebbe la nuova cartella appena installata.
+            // Invece, cancella il flag "cleanup done" così maybe_cleanup si riesegue
+            // alla prossima richiesta quando active_plugins è già aggiornato.
             $cleanup_key = PluginInstaller::OPTION_CLEANUP_DONE_VERSION . FP_REMOTE_BRIDGE_VERSION;
             delete_option($cleanup_key);
-            PluginInstaller::cleanup_duplicate_dirs();
+            // Cleanup immediato solo se il Bridge NON è tra i plugin appena installati
+            if (!isset($result['installed_by_bridge']['fp-remote-bridge'])) {
+                PluginInstaller::cleanup_duplicate_dirs();
+            }
 
             delete_transient('fp_bridge_sync_lock');
             MasterSync::run_manual_sync(false); // install=false: solo registra le versioni aggiornate
