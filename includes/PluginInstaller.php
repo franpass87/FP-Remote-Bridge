@@ -173,26 +173,10 @@ class PluginInstaller
             return ['error' => 'Estrazione: ' . $unzip->get_error_message()];
         }
 
-        // Debug: elenca cosa c'è nella directory estratta (max 3 livelli)
-        $extracted_contents = [];
-        $iter = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($temp_extract, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-        $iter->setMaxDepth(2);
-        foreach ($iter as $f) {
-            $rel = substr($f->getPathname(), strlen($temp_extract));
-            $extracted_contents[] = ($f->isDir() ? '[D]' : '[F]') . $rel;
-            if (count($extracted_contents) >= 20) {
-                $extracted_contents[] = '...';
-                break;
-            }
-        }
-
         $source_dir = self::find_plugin_root($temp_extract);
         if (!$source_dir || !is_dir($source_dir)) {
             $wp_filesystem->delete($temp_extract, true);
-            return ['error' => 'Struttura plugin non riconosciuta nello zip. Estratto: ' . implode(', ', array_slice($extracted_contents, 0, 10))];
+            return ['error' => 'Struttura plugin non riconosciuta nello zip'];
         }
 
         // --- Determina cartella target (case-insensitive) ---
@@ -381,9 +365,10 @@ class PluginInstaller
         }
         $files = glob($dir . '/*.php') ?: [];
         foreach ($files as $f) {
-            // Legge solo i primi 8KB per evitare file grandi
+            // Legge solo i primi 8KB per evitare file grandi.
+            // Usa lo stesso pattern di WordPress (get_plugin_data): cerca "Plugin Name:" ovunque nella riga.
             $data = @file_get_contents($f, false, null, 0, 8192);
-            if ($data !== false && preg_match('/^\s*Plugin Name\s*:/im', $data)) {
+            if ($data !== false && preg_match('/Plugin Name\s*:/i', $data)) {
                 return $f;
             }
         }
