@@ -287,11 +287,29 @@ class PluginInstaller
 
         $active_plugins = (array) get_option('active_plugins', []);
 
-        // Controlla con confronto case-insensitive (basename può differire per maiuscole)
+        // Controlla con confronto case-insensitive (basename può differire per maiuscole).
+        // Se il plugin è già attivo con un path diverso (es. "FP-Remote-Bridge/fp-remote-bridge.php"
+        // vs "fp-remote-bridge/fp-remote-bridge.php"), aggiorna active_plugins per puntare
+        // alla nuova cartella appena installata. Questo è fondamentale per gli aggiornamenti
+        // del Bridge su filesystem Linux case-sensitive.
+        $already_active_entry = null;
         foreach ($active_plugins as $active) {
             if (strtolower($active) === strtolower($plugin_basename)) {
-                return; // già attivo
+                if ($active === $plugin_basename) {
+                    return; // già attivo con lo stesso path esatto
+                }
+                $already_active_entry = $active;
+                break;
             }
+        }
+
+        if ($already_active_entry !== null) {
+            // Attivo con path diverso: aggiorna active_plugins per puntare alla nuova cartella
+            $updated = array_map(function ($a) use ($already_active_entry, $plugin_basename) {
+                return $a === $already_active_entry ? $plugin_basename : $a;
+            }, $active_plugins);
+            update_option('active_plugins', array_values($updated));
+            return;
         }
 
         // activate_plugin() può generare output, chiamare wp_die(), o lanciare Throwable.
