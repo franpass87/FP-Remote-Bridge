@@ -25,6 +25,12 @@ class SyncEndpoint
      */
     public static function register(): void
     {
+        register_rest_route('fp-remote-bridge/v1', '/flush-cache', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_flush_cache'],
+            'permission_callback' => [self::class, 'check_permission'],
+        ]);
+
         register_rest_route('fp-remote-bridge/v1', '/status', [
             'methods'             => 'GET',
             'callback'            => [self::class, 'handle_status'],
@@ -65,6 +71,26 @@ class SyncEndpoint
      * Dopo l'installazione fa un secondo ping al Master per aggiornare
      * le versioni mostrate nella UI in tempo reale.
      */
+    public static function handle_flush_cache(WP_REST_Request $request): WP_REST_Response
+    {
+        $reset = false;
+        if (function_exists('opcache_reset')) {
+            $reset = @opcache_reset();
+        } elseif (function_exists('opcache_invalidate')) {
+            $iter = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(WP_PLUGIN_DIR, \RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+            foreach ($iter as $file) {
+                if ($file->getExtension() === 'php') {
+                    @opcache_invalidate($file->getPathname(), true);
+                }
+            }
+            $reset = true;
+        }
+        wp_clean_plugins_cache(false);
+        return new WP_REST_Response(['success' => true, 'opcache_reset' => $reset], 200);
+    }
+
     public static function handle_status(WP_REST_Request $request): WP_REST_Response
     {
         $active_plugins = (array) get_option('active_plugins', []);
