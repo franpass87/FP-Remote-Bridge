@@ -157,7 +157,54 @@ class PluginInstaller
             $wp_filesystem->delete($backup_dir, true);
         }
 
+        // Attiva il plugin se non è già attivo
+        self::activate_plugin_if_needed($target_dir);
+
         return true;
+    }
+
+    /**
+     * Attiva il plugin installato se non è già attivo.
+     * Cerca il file principale del plugin nella cartella target.
+     */
+    private static function activate_plugin_if_needed(string $plugin_dir): void
+    {
+        if (!function_exists('activate_plugin') || !function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        $plugin_basename = self::find_plugin_basename($plugin_dir);
+        if (empty($plugin_basename)) {
+            return;
+        }
+
+        $active_plugins = (array) get_option('active_plugins', []);
+        if (in_array($plugin_basename, $active_plugins, true)) {
+            return; // già attivo
+        }
+
+        // Attiva senza redirect (silent)
+        $result = activate_plugin($plugin_basename, '', false, true);
+        if (is_wp_error($result)) {
+            // Fallback: attivazione manuale nell'option
+            $active_plugins[] = $plugin_basename;
+            sort($active_plugins);
+            update_option('active_plugins', $active_plugins);
+        }
+    }
+
+    /**
+     * Trova il basename WordPress del plugin (es. "fp-remote-bridge/fp-remote-bridge.php")
+     * dalla sua cartella di installazione.
+     */
+    private static function find_plugin_basename(string $plugin_dir): string
+    {
+        $main_file = self::find_plugin_main_file($plugin_dir);
+        if (!$main_file) {
+            return '';
+        }
+        // Restituisce il percorso relativo a wp-content/plugins/
+        return plugin_basename($main_file);
     }
 
     /**
