@@ -72,9 +72,16 @@ class SyncEndpoint
             // Svuota la cache plugin di WordPress per leggere le versioni aggiornate dal filesystem
             wp_clean_plugins_cache(false);
             if (function_exists('get_plugins')) {
-                // Forza rilettura da disco
                 get_plugins('/');
             }
+
+            // Forza cleanup cartelle duplicate: cancella il flag per questa versione
+            // così maybe_cleanup si riesegue e rimuove eventuali cartelle doppie create
+            // dall'installazione (es. "FP-Remote-Bridge" + "fp-remote-bridge")
+            $cleanup_key = PluginInstaller::OPTION_CLEANUP_DONE_VERSION . FP_REMOTE_BRIDGE_VERSION;
+            delete_option($cleanup_key);
+            PluginInstaller::cleanup_duplicate_dirs();
+
             delete_transient('fp_bridge_sync_lock');
             MasterSync::run_manual_sync(false); // install=false: solo registra le versioni aggiornate
         }
