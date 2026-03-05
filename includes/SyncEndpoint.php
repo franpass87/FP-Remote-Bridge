@@ -75,9 +75,24 @@ class SyncEndpoint
                 get_plugins('/');
             }
 
-            // Forza cleanup cartelle duplicate: cancella il flag per questa versione
-            // così maybe_cleanup si riesegue e rimuove eventuali cartelle doppie create
-            // dall'installazione (es. "FP-Remote-Bridge" + "fp-remote-bridge")
+            // Invalida opcache per i file aggiornati: senza questo, PHP riusa il vecchio
+            // bytecode in memoria anche se i file sul disco sono stati sostituiti.
+            if (function_exists('opcache_reset')) {
+                @opcache_reset();
+            } elseif (function_exists('opcache_invalidate')) {
+                // Invalida ricorsivamente la cartella plugin
+                $plugin_dir = WP_PLUGIN_DIR;
+                $iter = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($plugin_dir, \RecursiveDirectoryIterator::SKIP_DOTS)
+                );
+                foreach ($iter as $file) {
+                    if ($file->getExtension() === 'php') {
+                        @opcache_invalidate($file->getPathname(), true);
+                    }
+                }
+            }
+
+            // Forza cleanup cartelle duplicate
             $cleanup_key = PluginInstaller::OPTION_CLEANUP_DONE_VERSION . FP_REMOTE_BRIDGE_VERSION;
             delete_option($cleanup_key);
             PluginInstaller::cleanup_duplicate_dirs();

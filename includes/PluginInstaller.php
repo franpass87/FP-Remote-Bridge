@@ -19,6 +19,90 @@ class PluginInstaller
     public const OPTION_CLEANUP_DONE_VERSION = 'fp_remote_bridge_cleanup_done_v';
 
     /**
+     * Aggiorna il Bridge stesso usando WordPress Plugin Upgrader.
+     * Necessario perché PluginInstaller non può aggiornare se stesso:
+     * PHP ha già caricato il vecchio codice in memoria per questa richiesta.
+     * WordPress Upgrader gestisce correttamente opcache e plugin attivi.
+     */
+    private static function upgrade_self(string $github_repo, string $branch): bool|array
+    {
+        self::load_wp_admin_deps();
+
+        if (!function_exists('download_url')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        if (!class_exists('WP_Upgrader')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        }
+        if (!class_exists('Plugin_Upgrader')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        }
+
+        // Costruisce URL download ZIP da GitHub
+        $token = get_option(self::OPTION_GITHUB_TOKEN, '');
+        if (!empty($token)) {
+            $zip_url = "https://api.github.com/repos/{$github_repo}/zipball/{$branch}";
+        } else {
+            $zip_url = "https://github.com/{$github_repo}/archive/refs/heads/{$branch}.zip";
+        }
+
+        // Trova il basename del plugin attivo
+        $plugin_basename = '';
+        $existing_dir = self::find_existing_plugin_dir('fp-remote-bridge');
+        if ($existing_dir) {
+            $plugin_basename = self::find_plugin_basename($existing_dir);
+        }
+
+        // Usa Plugin_Upgrader con skin silenziosa
+        $skin     = new \WP_Ajax_Upgrader_Skin();
+        $upgrader = new \Plugin_Upgrader($skin);
+
+        // Prepara il package: scarica lo ZIP
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        if (!file_exists($upgrade_dir)) {
+            wp_mkdir_p($upgrade_dir);
+        }
+        $temp_file = download_url($zip_url, 300);
+        if (is_wp_error($temp_file)) {
+            return ['error' => 'Download fallito: ' . $temp_file->get_error_message()];
+        }
+
+        // Usa il metodo install() dell'upgrader che gestisce tutto
+        ob_start();
+        $result = $upgrader->install($temp_file, [
+            'overwrite_package' => true,
+        ]);
+        ob_end_clean();
+        @unlink($temp_file);
+
+        if (is_wp_error($result)) {
+            return ['error' => 'Upgrader: ' . $result->get_error_message()];
+        }
+        if ($result === false) {
+            $errors = $skin->get_errors();
+            $msg = is_wp_error($errors) ? $errors->get_error_message() : 'Upgrader ha restituito false';
+            return ['error' => $msg];
+        }
+
+        // Riattiva il plugin se era attivo
+        if (!empty($plugin_basename)) {
+            $active = (array) get_option('active_plugins', []);
+            $is_active = false;
+            foreach ($active as $a) {
+                if (strtolower($a) === strtolower($plugin_basename)) {
+                    $is_active = true;
+                    break;
+                }
+            }
+            if (!$is_active) {
+                activate_plugin($plugin_basename, '', false, true);
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Assicura che tutte le funzioni admin necessarie siano disponibili.
      * Sicuro da chiamare sia in contesto cron che admin.
      */
@@ -82,6 +166,14 @@ class PluginInstaller
         $slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', trim($slug, '-'));
         if (empty($slug)) {
             return ['error' => 'Slug non valido'];
+        }
+
+        // Se stiamo aggiornando il Bridge stesso, usa WordPress Plugin Upgrader
+        // che gestisce correttamente l'aggiornamento di plugin attivi (incluso opcache).
+        // PluginInstaller non può aggiornare se stesso perché PHP ha già caricato
+        // il vecchio codice in memoria per questa richiesta.
+        if ($slug === 'fp-remote-bridge' && !empty($github_repo)) {
+            return self::upgrade_self($github_repo, $branch);
         }
 
         self::load_wp_admin_deps();
@@ -175,22 +267,8 @@ class PluginInstaller
 
         $source_dir = self::find_plugin_root($temp_extract);
         if (!$source_dir || !is_dir($source_dir)) {
-            // Debug: elenca cosa c'è nella directory estratta
-            $contents = [];
-            foreach (glob($temp_extract . '/*') ?: [] as $f) {
-                $contents[] = basename($f) . (is_dir($f) ? '/' : '');
-            }
-            if (!empty($contents)) {
-                foreach (glob($temp_extract . '/*/') ?: [] as $subdir) {
-                    $phpfiles = glob($subdir . '*.php') ?: [];
-                    foreach ($phpfiles as $pf) {
-                        $data = @file_get_contents($pf, false, null, 0, 512);
-                        $contents[] = '  ' . basename($subdir) . '/' . basename($pf) . ' match=' . (preg_match('/Plugin Name\s*:/i', $data ?: '') ? 'YES' : 'NO');
-                    }
-                }
-            }
             $wp_filesystem->delete($temp_extract, true);
-            return ['error' => 'Struttura non riconosciuta. Estratto: ' . implode(', ', $contents)];
+            return ['error' => 'Struttura plugin non riconosciuta nello zip'];
         }
 
         // --- Determina cartella target (case-insensitive) ---
