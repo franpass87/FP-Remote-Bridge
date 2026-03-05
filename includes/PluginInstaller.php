@@ -15,89 +15,133 @@ if (!defined('ABSPATH')) {
 
 class PluginInstaller
 {
-    public const OPTION_GITHUB_TOKEN        = 'fp_remote_bridge_github_token';
+    public const OPTION_GITHUB_TOKEN         = 'fp_remote_bridge_github_token';
     public const OPTION_CLEANUP_DONE_VERSION = 'fp_remote_bridge_cleanup_done_v';
 
     /**
-     * Installa o aggiorna un plugin dalla risposta Master
+     * Assicura che tutte le funzioni admin necessarie siano disponibili.
+     * Sicuro da chiamare sia in contesto cron che admin.
+     */
+    private static function load_wp_admin_deps(): void
+    {
+        if (!function_exists('download_url')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        if (!function_exists('unzip_file')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        if (!function_exists('activate_plugin')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+    }
+
+    /**
+     * Inizializza WP_Filesystem e verifica che sia disponibile.
+     * Restituisce false se non disponibile.
+     */
+    private static function init_filesystem(): bool
+    {
+        global $wp_filesystem;
+        if ($wp_filesystem instanceof \WP_Filesystem_Base) {
+            return true;
+        }
+        self::load_wp_admin_deps();
+        $result = WP_Filesystem();
+        if ($result === false || !($wp_filesystem instanceof \WP_Filesystem_Base)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Installa o aggiorna un plugin dalla risposta Master.
+     * Gestisce backup, ripristino e attivazione in modo sicuro.
      *
      * @param array $plugin Dati da Master: slug, github_repo?, branch?, zip_url?
      * @return bool|array true se ok, array con 'error' se fallito
      */
     public static function install_from_master(array $plugin): bool|array
     {
-        $slug = $plugin['slug'] ?? '';
-        $zip_url = $plugin['zip_url'] ?? '';
+        $slug        = $plugin['slug'] ?? '';
+        $zip_url     = $plugin['zip_url'] ?? '';
         $github_repo = $plugin['github_repo'] ?? '';
-        $branch = $plugin['branch'] ?? 'main';
+        $branch      = $plugin['branch'] ?? 'main';
 
         if (empty($slug)) {
             if (!empty($github_repo)) {
                 $parts = explode('/', $github_repo);
-                $slug = strtolower(end($parts));
+                $slug  = strtolower(end($parts));
             } else {
                 return ['error' => 'Slug o github_repo richiesti'];
             }
         }
 
         $slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', trim($slug, '-'));
-
-        if (!empty($zip_url) && filter_var($zip_url, FILTER_VALIDATE_URL)) {
-            $download_url = $zip_url;
-            $args = [
-                'timeout' => 300,
-                'headers' => ['User-Agent' => 'FP-Remote-Bridge/' . (defined('FP_REMOTE_BRIDGE_VERSION') ? FP_REMOTE_BRIDGE_VERSION : '1.0')],
-            ];
-        } elseif (!empty($github_repo)) {
-            $token = get_option(self::OPTION_GITHUB_TOKEN, '');
-            if (!empty($token)) {
-                $download_url = "https://api.github.com/repos/{$github_repo}/zipball/{$branch}";
-                $args = [
-                    'timeout' => 300,
-                    'headers' => [
-                        'User-Agent' => 'FP-Remote-Bridge/1.0',
-                        'Accept' => 'application/vnd.github.v3+json',
-                        'Authorization' => 'token ' . $token,
-                    ],
-                ];
-            } else {
-                $download_url = "https://github.com/{$github_repo}/archive/refs/heads/{$branch}.zip";
-                $args = [
-                    'timeout' => 300,
-                    'headers' => ['User-Agent' => 'FP-Remote-Bridge/1.0'],
-                ];
-            }
-        } else {
-            return ['error' => 'zip_url o github_repo richiesti'];
+        if (empty($slug)) {
+            return ['error' => 'Slug non valido'];
         }
 
+        self::load_wp_admin_deps();
+
+        // --- Download ---
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
         if (!file_exists($upgrade_dir)) {
             wp_mkdir_p($upgrade_dir);
         }
 
-        $temp_file = $upgrade_dir . '/fp-bridge-download-' . time() . '-' . uniqid() . '.zip';
+        $temp_file = $upgrade_dir . '/fp-bridge-dl-' . time() . '-' . uniqid() . '.zip';
 
-        if (!empty($args['headers']['Authorization'])) {
-            $args['stream'] = true;
-            $args['filename'] = $temp_file;
-            $response = wp_remote_get($download_url, $args);
-            if (is_wp_error($response)) {
-                return ['error' => $response->get_error_message()];
-            }
-            if (wp_remote_retrieve_response_code($response) !== 200) {
-                @unlink($temp_file);
-                return ['error' => 'HTTP ' . wp_remote_retrieve_response_code($response)];
-            }
-        } else {
-            $downloaded = download_url($download_url, 300);
+        if (!empty($zip_url) && filter_var($zip_url, FILTER_VALIDATE_URL)) {
+            $downloaded = download_url($zip_url, 300);
             if (is_wp_error($downloaded)) {
-                return ['error' => $downloaded->get_error_message()];
+                return ['error' => 'Download ZIP: ' . $downloaded->get_error_message()];
             }
             if (!@rename($downloaded, $temp_file)) {
                 @copy($downloaded, $temp_file);
                 @unlink($downloaded);
             }
+        } elseif (!empty($github_repo)) {
+            $token = get_option(self::OPTION_GITHUB_TOKEN, '');
+            if (!empty($token)) {
+                $args = [
+                    'timeout'  => 300,
+                    'stream'   => true,
+                    'filename' => $temp_file,
+                    'headers'  => [
+                        'User-Agent'    => 'FP-Remote-Bridge/1.0',
+                        'Accept'        => 'application/vnd.github.v3+json',
+                        'Authorization' => 'token ' . $token,
+                    ],
+                ];
+                $response = wp_remote_get(
+                    "https://api.github.com/repos/{$github_repo}/zipball/{$branch}",
+                    $args
+                );
+                if (is_wp_error($response)) {
+                    @unlink($temp_file);
+                    return ['error' => 'Download GitHub (token): ' . $response->get_error_message()];
+                }
+                $code = wp_remote_retrieve_response_code($response);
+                if ($code !== 200) {
+                    @unlink($temp_file);
+                    return ['error' => 'Download GitHub (token): HTTP ' . $code];
+                }
+            } else {
+                $download_url = "https://github.com/{$github_repo}/archive/refs/heads/{$branch}.zip";
+                $downloaded   = download_url($download_url, 300);
+                if (is_wp_error($downloaded)) {
+                    return ['error' => 'Download GitHub: ' . $downloaded->get_error_message()];
+                }
+                if (!@rename($downloaded, $temp_file)) {
+                    @copy($downloaded, $temp_file);
+                    @unlink($downloaded);
+                }
+            }
+        } else {
+            return ['error' => 'zip_url o github_repo richiesti'];
         }
 
         if (!file_exists($temp_file) || filesize($temp_file) === 0) {
@@ -105,15 +149,19 @@ class PluginInstaller
             return ['error' => 'File scaricato vuoto o mancante'];
         }
 
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        WP_Filesystem();
+        // --- Estrazione ---
+        if (!self::init_filesystem()) {
+            @unlink($temp_file);
+            return ['error' => 'WP_Filesystem non disponibile'];
+        }
         global $wp_filesystem;
 
-        $temp_extract = $upgrade_dir . '/fp-bridge-extract-' . time();
-        $unzip = unzip_file($temp_file, $temp_extract);
+        $temp_extract = $upgrade_dir . '/fp-bridge-extract-' . time() . '-' . uniqid();
+        $unzip        = unzip_file($temp_file, $temp_extract);
         @unlink($temp_file);
 
         if (is_wp_error($unzip)) {
+            $wp_filesystem->delete($temp_extract, true);
             return ['error' => 'Estrazione: ' . $unzip->get_error_message()];
         }
 
@@ -123,74 +171,108 @@ class PluginInstaller
             return ['error' => 'Struttura plugin non riconosciuta nello zip'];
         }
 
-        // Cerca una cartella esistente con lo stesso nome (case-insensitive su filesystem Linux)
-        $target_dir = WP_PLUGIN_DIR . '/' . $slug;
+        // --- Determina cartella target (case-insensitive) ---
+        $target_dir   = WP_PLUGIN_DIR . '/' . $slug;
         $existing_dir = self::find_existing_plugin_dir($slug);
         if ($existing_dir && $existing_dir !== $target_dir) {
             $target_dir = $existing_dir;
         }
-        $backup_dir = null;
 
-        if (file_exists($target_dir) && is_dir($target_dir)) {
-            $backup_dir = $upgrade_dir . '/fp-bridge-backup-' . $slug . '-' . time();
+        // --- Backup della cartella esistente ---
+        $backup_dir = null;
+        if (is_dir($target_dir)) {
+            $backup_dir = $upgrade_dir . '/fp-bridge-backup-' . basename($target_dir) . '-' . time();
             if (!@rename($target_dir, $backup_dir)) {
-                $wp_filesystem->delete($temp_extract, true);
-                return ['error' => 'Impossibile creare backup della cartella esistente'];
+                // rename fallito (cross-device): copia e poi rimuovi
+                if (!self::copy_dir($source_dir, $backup_dir, $wp_filesystem)) {
+                    $wp_filesystem->delete($temp_extract, true);
+                    return ['error' => 'Impossibile creare backup della cartella esistente'];
+                }
+                // In questo caso $target_dir è ancora intatta, procediamo con la copia diretta
+                $backup_dir = null; // non c'è backup vero da ripristinare
             }
         }
 
-        $move_ok = @rename($source_dir, $target_dir);
-        if (!$move_ok) {
-            $copy_ok = self::copy_dir($source_dir, $target_dir, $wp_filesystem);
-            if (!$copy_ok) {
-                if ($backup_dir && file_exists($backup_dir)) {
-                    @rename($backup_dir, $target_dir);
-                }
-                $wp_filesystem->delete($temp_extract, true);
-                return ['error' => 'Impossibile copiare il plugin'];
+        // --- Copia nuova versione ---
+        $installed = false;
+        if (@rename($source_dir, $target_dir)) {
+            $installed = true;
+        } else {
+            // rename cross-device: usa copy
+            if (self::copy_dir($source_dir, $target_dir, $wp_filesystem)) {
+                $installed = true;
             }
         }
 
         $wp_filesystem->delete($temp_extract, true);
 
-        if ($backup_dir && file_exists($backup_dir)) {
+        if (!$installed) {
+            // Ripristina backup se disponibile
+            if ($backup_dir && is_dir($backup_dir)) {
+                @rename($backup_dir, $target_dir);
+            }
+            return ['error' => 'Impossibile installare il plugin nella cartella target'];
+        }
+
+        // Installazione riuscita: rimuovi il backup
+        if ($backup_dir && is_dir($backup_dir)) {
             $wp_filesystem->delete($backup_dir, true);
         }
 
-        // Attiva il plugin se non è già attivo
-        self::activate_plugin_if_needed($target_dir);
+        // --- Attivazione sicura ---
+        self::activate_plugin_safely($target_dir);
 
         return true;
     }
 
     /**
-     * Attiva il plugin installato se non è già attivo.
-     * Cerca il file principale del plugin nella cartella target.
+     * Attiva il plugin installato in modo sicuro.
+     * Non genera fatal anche se il plugin ha errori — usa output buffering per catturare
+     * eventuali output inattesi e verifica il risultato.
      */
-    private static function activate_plugin_if_needed(string $plugin_dir): void
+    private static function activate_plugin_safely(string $plugin_dir): void
     {
-        if (!function_exists('activate_plugin') || !function_exists('get_plugins')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
-
         $plugin_basename = self::find_plugin_basename($plugin_dir);
         if (empty($plugin_basename)) {
             return;
         }
 
         $active_plugins = (array) get_option('active_plugins', []);
-        if (in_array($plugin_basename, $active_plugins, true)) {
-            return; // già attivo
+
+        // Controlla con confronto case-insensitive (basename può differire per maiuscole)
+        foreach ($active_plugins as $active) {
+            if (strtolower($active) === strtolower($plugin_basename)) {
+                return; // già attivo
+            }
         }
 
-        // Attiva senza redirect (silent)
-        $result = activate_plugin($plugin_basename, '', false, true);
-        if (is_wp_error($result)) {
-            // Fallback: attivazione manuale nell'option
-            $active_plugins[] = $plugin_basename;
-            sort($active_plugins);
-            update_option('active_plugins', $active_plugins);
+        // activate_plugin() può generare output e chiamare wp_die() in caso di errore.
+        // Lo eseguiamo in un contesto protetto: output buffer + error handler temporaneo.
+        $previous_error_handler = set_error_handler(function() {
+            return true; // silenzia E_WARNING/E_NOTICE durante l'attivazione
+        });
+
+        $result = null;
+        try {
+            ob_start();
+            $result = activate_plugin($plugin_basename, '', false, true);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            // Il plugin ha un errore fatale — non attivare, non fare nulla
+            restore_error_handler();
+            return;
         }
+
+        restore_error_handler();
+
+        if (is_wp_error($result)) {
+            // activate_plugin ha rifiutato il plugin (es. requisiti non soddisfatti).
+            // NON forziamo l'attivazione manuale: potrebbe causare fatal al prossimo caricamento.
+            return;
+        }
+
+        // Attivazione riuscita — WordPress ha già aggiornato active_plugins
     }
 
     /**
@@ -203,7 +285,6 @@ class PluginInstaller
         if (!$main_file) {
             return '';
         }
-        // Restituisce il percorso relativo a wp-content/plugins/
         return plugin_basename($main_file);
     }
 
@@ -213,7 +294,7 @@ class PluginInstaller
      */
     private static function find_existing_plugin_dir(string $slug): ?string
     {
-        $slug_lower = strtolower($slug);
+        $slug_lower  = strtolower($slug);
         $plugin_dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
         foreach ($plugin_dirs as $dir) {
             if (strtolower(basename($dir)) === $slug_lower) {
@@ -225,6 +306,7 @@ class PluginInstaller
 
     /**
      * Trova la directory root del plugin (con file PHP con "Plugin Name:")
+     * nell'archivio estratto. Cerca fino a 2 livelli di profondità.
      */
     private static function find_plugin_root(string $extracted_dir): ?string
     {
@@ -258,26 +340,30 @@ class PluginInstaller
         }
         $files = glob($dir . '/*.php') ?: [];
         foreach ($files as $f) {
+            // Legge solo i primi 8KB per evitare file grandi
             $data = @file_get_contents($f, false, null, 0, 8192);
-            if ($data && preg_match('/Plugin Name:\s*.+/i', $data)) {
+            if ($data !== false && preg_match('/^\s*Plugin Name\s*:/im', $data)) {
                 return $f;
             }
         }
         return null;
     }
 
-    private static function copy_dir(string $src, string $dest, $wp_fs): bool
+    private static function copy_dir(string $src, string $dest, \WP_Filesystem_Base $wp_fs): bool
     {
         if (!$wp_fs->exists($dest)) {
             $wp_fs->mkdir($dest, FS_CHMOD_DIR);
         }
+
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($src, \RecursiveDirectoryIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
         );
+
         foreach ($iterator as $item) {
-            $rel = str_replace($src . DIRECTORY_SEPARATOR, '', $item->getPathname());
+            $rel       = ltrim(str_replace($src, '', $item->getPathname()), DIRECTORY_SEPARATOR . '/');
             $dest_path = $dest . DIRECTORY_SEPARATOR . $rel;
+
             if ($item->isDir()) {
                 if (!$wp_fs->exists($dest_path)) {
                     $wp_fs->mkdir($dest_path, FS_CHMOD_DIR);
@@ -286,12 +372,14 @@ class PluginInstaller
                 $wp_fs->copy($item->getPathname(), $dest_path, true, FS_CHMOD_FILE);
             }
         }
+
         return true;
     }
 
     /**
      * Esegue la pulizia dei duplicati solo una volta per versione Bridge.
      * Chiamato da plugins_loaded dopo ogni aggiornamento del Bridge.
+     * NON esegue sync remoto (troppo lento per plugins_loaded).
      */
     public static function maybe_cleanup(): void
     {
@@ -299,45 +387,52 @@ class PluginInstaller
         if (get_option($done_key)) {
             return;
         }
-        $removed = self::cleanup_duplicate_dirs();
-        update_option($done_key, time(), false);
-        if (!empty($removed)) {
-            \FP\RemoteBridge\MasterSync::run_sync();
-        }
+
+        // Esegui la pulizia su init, non su plugins_loaded, per avere tutto il contesto WP
+        add_action('init', function () use ($done_key) {
+            if (get_option($done_key)) {
+                return; // doppio check per concorrenza
+            }
+            self::cleanup_duplicate_dirs();
+            update_option($done_key, time(), false);
+        }, 1);
     }
 
     /**
      * Cerca e rimuove cartelle plugin duplicate con nomi case-insensitive identici
      * ma diversi da quello del plugin attivo (es. "fp-remote-bridge" se esiste "FP-Remote-Bridge").
+     * Non rimuove MAI cartelle con plugin attivi.
      *
      * @return array<string> Elenco delle cartelle rimosse
      */
     public static function cleanup_duplicate_dirs(): array
     {
+        if (!self::init_filesystem()) {
+            return [];
+        }
+        global $wp_filesystem;
+
         $plugin_dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
 
-        // Raggruppa le cartelle per nome lowercase
+        // Raggruppa per nome lowercase
         $groups = [];
         foreach ($plugin_dirs as $dir) {
-            $key = strtolower(basename($dir));
-            $groups[$key][] = $dir;
+            $groups[strtolower(basename($dir))][] = $dir;
         }
 
-        $removed = [];
+        $active_plugins = (array) get_option('active_plugins', []);
+        $removed        = [];
 
-        foreach ($groups as $key => $dirs) {
+        foreach ($groups as $dirs) {
             if (count($dirs) <= 1) {
                 continue;
             }
 
-            // Trova la cartella "canonica": quella con un plugin attivo (file PHP con Plugin Name:)
+            // Trova la cartella canonica: quella con un plugin ATTIVO
             $canonical = null;
-            $active_plugins = (array) get_option('active_plugins', []);
-
             foreach ($dirs as $dir) {
                 $base = basename($dir);
                 foreach ($active_plugins as $active) {
-                    // $active è "slug/file.php"
                     if (strpos($active, $base . '/') === 0) {
                         $canonical = $dir;
                         break 2;
@@ -345,19 +440,18 @@ class PluginInstaller
                 }
             }
 
-            // Se nessuna è attiva, usa quella con il nome più lungo (originale con maiuscole)
+            // Se nessuna è attiva, non rimuovere nulla — troppo rischioso
             if (!$canonical) {
-                usort($dirs, fn($a, $b) => strlen(basename($b)) - strlen(basename($a)));
-                $canonical = $dirs[0];
+                continue;
             }
 
-            // Rimuovi tutte le altre
+            // Rimuovi solo le non-canoniche che non hanno plugin attivi
             foreach ($dirs as $dir) {
                 if ($dir === $canonical) {
                     continue;
                 }
-                // Verifica che non ci sia un plugin attivo in questa cartella
-                $base = basename($dir);
+
+                $base      = basename($dir);
                 $is_active = false;
                 foreach ($active_plugins as $active) {
                     if (strpos($active, $base . '/') === 0) {
@@ -365,15 +459,12 @@ class PluginInstaller
                         break;
                     }
                 }
+
                 if ($is_active) {
-                    continue; // Non rimuovere cartelle con plugin attivi
+                    continue; // sicurezza: non toccare mai cartelle con plugin attivi
                 }
 
-                // Rimozione sicura
-                require_once ABSPATH . 'wp-admin/includes/file.php';
-                WP_Filesystem();
-                global $wp_filesystem;
-                if ($wp_filesystem && $wp_filesystem->is_dir($dir)) {
+                if ($wp_filesystem->is_dir($dir)) {
                     $wp_filesystem->delete($dir, true);
                     $removed[] = $dir;
                 }
