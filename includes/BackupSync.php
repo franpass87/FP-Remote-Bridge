@@ -27,6 +27,9 @@ class BackupSync
     {
         add_action(self::CRON_HOOK, [self::class, 'run_backup']);
         add_action('admin_init', [self::class, 'ensure_cron_scheduled']);
+        if (!is_admin()) {
+            add_action('wp_loaded', [self::class, 'ensure_cron_scheduled']);
+        }
         add_action('update_option_' . self::OPTION_BACKUP_ENABLED, [self::class, 'reschedule_cron']);
         add_action('update_option_' . self::OPTION_BACKUP_INTERVAL, [self::class, 'reschedule_cron']);
         add_action('update_option_' . MasterSync::OPTION_MASTER_URL, [self::class, 'reschedule_cron']);

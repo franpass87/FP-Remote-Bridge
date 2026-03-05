@@ -67,10 +67,10 @@ class Settings
         ]);
         register_setting('fp_remote_bridge_settings', MasterSync::OPTION_SYNC_INTERVAL, [
             'type' => 'string',
-            'default' => 'hourly',
+            'default' => 'every_minute',
             'sanitize_callback' => function ($value) {
-                $allowed = ['hourly', 'twicedaily', 'daily'];
-                return in_array($value, $allowed, true) ? $value : 'hourly';
+                $allowed = ['every_minute', 'every_5_minutes', 'hourly', 'twicedaily', 'daily'];
+                return in_array($value, $allowed, true) ? $value : 'every_minute';
             },
         ]);
         register_setting('fp_remote_bridge_settings', BackupSync::OPTION_BACKUP_ENABLED, [
@@ -146,7 +146,7 @@ class Settings
 
         $master_url = get_option(MasterSync::OPTION_MASTER_URL, '');
         $master_secret = get_option(MasterSync::OPTION_MASTER_SECRET, '');
-        $sync_interval = get_option(MasterSync::OPTION_SYNC_INTERVAL, 'hourly');
+        $sync_interval = get_option(MasterSync::OPTION_SYNC_INTERVAL, 'every_minute');
         $secret = get_option(PluginUpdateEndpoint::OPTION_SECRET, '');
         $endpoint_url = PluginUpdateEndpoint::get_endpoint_url();
 
@@ -155,7 +155,7 @@ class Settings
         $updates_done = isset($_GET['fp_bridge_updates']) && $_GET['fp_bridge_updates'] === '1';
         $deploy_authorized = isset($_GET['fp_bridge_deploy_authorized']) && $_GET['fp_bridge_deploy_authorized'] === '1';
         $backup_result = isset($_GET['fp_bridge_backup_result']) ? sanitize_text_field($_GET['fp_bridge_backup_result']) : '';
-        $backup_error = isset($_GET['fp_bridge_backup_error']) ? sanitize_text_field(urldecode($_GET['fp_bridge_backup_error'])) : '';
+        $backup_error = isset($_GET['fp_bridge_backup_error']) ? sanitize_text_field(wp_unslash(urldecode($_GET['fp_bridge_backup_error']))) : '';
         $backup_enabled = get_option(BackupSync::OPTION_BACKUP_ENABLED, false);
         $backup_interval = get_option(BackupSync::OPTION_BACKUP_INTERVAL, 'daily');
         $backup_client_id = get_option(BackupSync::OPTION_BACKUP_CLIENT_ID, '');
@@ -258,6 +258,8 @@ class Settings
                         </th>
                         <td>
                             <select id="fp_remote_bridge_sync_interval" name="<?php echo esc_attr(MasterSync::OPTION_SYNC_INTERVAL); ?>">
+                                <option value="every_minute" <?php selected($sync_interval, 'every_minute'); ?>><?php esc_html_e('Ogni minuto', 'fp-remote-bridge'); ?></option>
+                                <option value="every_5_minutes" <?php selected($sync_interval, 'every_5_minutes'); ?>><?php esc_html_e('Ogni 5 minuti', 'fp-remote-bridge'); ?></option>
                                 <option value="hourly" <?php selected($sync_interval, 'hourly'); ?>><?php esc_html_e('Ogni ora', 'fp-remote-bridge'); ?></option>
                                 <option value="twicedaily" <?php selected($sync_interval, 'twicedaily'); ?>><?php esc_html_e('Due volte al giorno', 'fp-remote-bridge'); ?></option>
                                 <option value="daily" <?php selected($sync_interval, 'daily'); ?>><?php esc_html_e('Una volta al giorno', 'fp-remote-bridge'); ?></option>

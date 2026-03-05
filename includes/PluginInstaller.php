@@ -250,10 +250,9 @@ class PluginInstaller
         // activate_plugin() può generare output, chiamare wp_die(), o lanciare Throwable.
         // Intercettiamo wp_die() tramite filtro, silenzializziamo warning con error handler,
         // e catturiamo output con ob_start(). Il blocco finally garantisce il cleanup.
-        $wp_die_called  = false;
-        $die_handler_id = 'fp_bridge_activate_die_' . mt_rand();
+        $wp_die_called = false;
 
-        $wp_die_filter = add_filter('wp_die_handler', function() use (&$wp_die_called, $die_handler_id) {
+        $wp_die_filter = add_filter('wp_die_handler', function() use (&$wp_die_called) {
             return function() use (&$wp_die_called) {
                 $wp_die_called = true;
                 // cattura l'output residuo se ob_start è attivo
@@ -375,8 +374,9 @@ class PluginInstaller
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
+        $src_len = strlen($src);
         foreach ($iterator as $item) {
-            $rel       = ltrim(str_replace($src, '', $item->getPathname()), DIRECTORY_SEPARATOR . '/');
+            $rel       = ltrim(substr($item->getPathname(), $src_len), DIRECTORY_SEPARATOR . '/');
             $dest_path = $dest . DIRECTORY_SEPARATOR . $rel;
 
             if ($item->isDir()) {
