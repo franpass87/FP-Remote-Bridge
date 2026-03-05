@@ -211,25 +211,26 @@ class MasterSync
 
         $plugins = $data['plugins'] ?? [];
 
-        if (class_exists('FP\GitUpdater\Updater')) {
-            $updater = \FP\GitUpdater\Updater::get_instance();
-            $updater->check_for_updates();
-            // Aggiorna SOLO i plugin restituiti dal Master (già filtrati per selezione)
-            foreach ($plugins as $plugin) {
+        foreach ($plugins as $plugin) {
+            $has_source = !empty($plugin['github_repo']) || !empty($plugin['zip_url'] ?? '');
+
+            // Se il plugin ha una sorgente diretta (github_repo o zip_url), installa/aggiorna
+            // direttamente tramite PluginInstaller — funziona sia per nuove installazioni
+            // che per aggiornamenti di plugin già presenti, indipendentemente da FP Updater.
+            if ($has_source) {
+                PluginInstaller::install_from_master($plugin);
+                continue;
+            }
+
+            // Per plugin senza sorgente diretta (gestiti solo da FP Updater locale), usa l'Updater
+            if (class_exists('FP\GitUpdater\Updater')) {
                 $plugin_id = $plugin['id'] ?? $plugin['slug'] ?? '';
                 if (!empty($plugin_id)) {
+                    $updater = \FP\GitUpdater\Updater::get_instance();
+                    $updater->check_for_updates();
                     $updater->run_update_by_id($plugin_id);
                 }
             }
-            return;
-        }
-
-        // Senza FP Updater: Bridge installa direttamente
-        foreach ($plugins as $plugin) {
-            if (empty($plugin['github_repo']) && empty($plugin['zip_url'] ?? '')) {
-                continue;
-            }
-            PluginInstaller::install_from_master($plugin);
         }
     }
 
@@ -257,20 +258,21 @@ class MasterSync
 
         // I client installano SOLO se il Master ha autorizzato il deploy
         if ($updates_available && $deploy_authorized && $install) {
-            if (class_exists('FP\GitUpdater\Updater')) {
-                $updater = \FP\GitUpdater\Updater::get_instance();
-                $updater->check_for_updates();
-                foreach ($plugins as $plugin) {
+            foreach ($plugins as $plugin) {
+                $has_source = !empty($plugin['github_repo']) || !empty($plugin['zip_url'] ?? '');
+
+                if ($has_source) {
+                    $res = PluginInstaller::install_from_master($plugin);
+                    $installed[$plugin['slug'] ?? $plugin['id'] ?? '?'] = $res === true ? 'ok' : ($res['error'] ?? 'error');
+                    continue;
+                }
+
+                if (class_exists('FP\GitUpdater\Updater')) {
                     $plugin_id = $plugin['id'] ?? $plugin['slug'] ?? '';
                     if (!empty($plugin_id)) {
+                        $updater = \FP\GitUpdater\Updater::get_instance();
+                        $updater->check_for_updates();
                         $updater->run_update_by_id($plugin_id);
-                    }
-                }
-            } else {
-                foreach ($plugins as $plugin) {
-                    if (!empty($plugin['github_repo']) || !empty($plugin['zip_url'] ?? '')) {
-                        $result = PluginInstaller::install_from_master($plugin);
-                        $installed[$plugin['slug'] ?? $plugin['id'] ?? '?'] = $result === true ? 'ok' : ($result['error'] ?? 'error');
                     }
                 }
             }
