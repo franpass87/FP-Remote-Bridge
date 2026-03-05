@@ -149,6 +149,14 @@ class PluginInstaller
             return ['error' => 'File scaricato vuoto o mancante'];
         }
 
+        // Verifica che il file sia un ZIP valido (magic bytes PK = 0x50 0x4B)
+        $magic = @file_get_contents($temp_file, false, null, 0, 2);
+        if ($magic !== 'PK') {
+            $size = filesize($temp_file);
+            @unlink($temp_file);
+            return ['error' => 'File scaricato non è un ZIP valido (size:' . $size . ')'];
+        }
+
         // --- Estrazione ---
         if (!self::init_filesystem()) {
             @unlink($temp_file);
@@ -165,10 +173,26 @@ class PluginInstaller
             return ['error' => 'Estrazione: ' . $unzip->get_error_message()];
         }
 
+        // Debug: elenca cosa c'è nella directory estratta (max 3 livelli)
+        $extracted_contents = [];
+        $iter = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($temp_extract, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        $iter->setMaxDepth(2);
+        foreach ($iter as $f) {
+            $rel = substr($f->getPathname(), strlen($temp_extract));
+            $extracted_contents[] = ($f->isDir() ? '[D]' : '[F]') . $rel;
+            if (count($extracted_contents) >= 20) {
+                $extracted_contents[] = '...';
+                break;
+            }
+        }
+
         $source_dir = self::find_plugin_root($temp_extract);
         if (!$source_dir || !is_dir($source_dir)) {
             $wp_filesystem->delete($temp_extract, true);
-            return ['error' => 'Struttura plugin non riconosciuta nello zip'];
+            return ['error' => 'Struttura plugin non riconosciuta nello zip. Estratto: ' . implode(', ', array_slice($extracted_contents, 0, 10))];
         }
 
         // --- Determina cartella target (case-insensitive) ---
