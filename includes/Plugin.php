@@ -38,6 +38,7 @@ class Plugin
         add_action('rest_api_init', [RestEndpoint::class, 'register']);
         add_action('rest_api_init', [PluginUpdateEndpoint::class, 'register']);
         add_action('rest_api_init', [BackupEndpoint::class, 'register']);
+        add_action('rest_api_init', [SyncEndpoint::class, 'register']);
         Settings::init();
         MasterSync::init();
         BackupSync::init();

@@ -1,0 +1,75 @@
+<?php
+/**
+ * Endpoint REST per trigger sync da Master
+ *
+ * Permette al Master di chiamare direttamente il Bridge per avviare
+ * un sync immediato, senza aspettare il cron WordPress del client.
+ * Autenticato con lo stesso secret Master già configurato sul Bridge.
+ *
+ * @package FP\RemoteBridge
+ */
+
+namespace FP\RemoteBridge;
+
+use WP_REST_Request;
+use WP_REST_Response;
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class SyncEndpoint
+{
+    /**
+     * Registra l'endpoint REST
+     */
+    public static function register(): void
+    {
+        register_rest_route('fp-remote-bridge/v1', '/trigger-sync', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_request'],
+            'permission_callback' => [self::class, 'permission_check'],
+        ]);
+    }
+
+    /**
+     * Verifica permessi: usa il secret Master già configurato sul Bridge.
+     * Solo il Master conosce questo secret, quindi è sicuro.
+     */
+    public static function permission_check(WP_REST_Request $request): bool
+    {
+        $configured = get_option(MasterSync::OPTION_MASTER_SECRET, '');
+        if (empty($configured) || !is_string($configured)) {
+            return false;
+        }
+
+        $provided = $request->get_header('X-FP-Client-Secret');
+        if (empty($provided)) {
+            $provided = $request->get_param('secret');
+        }
+        if (empty($provided) || !is_string($provided)) {
+            return false;
+        }
+
+        return hash_equals($configured, $provided);
+    }
+
+    /**
+     * Esegue il sync immediato e restituisce il risultato.
+     */
+    public static function handle_request(WP_REST_Request $request): WP_REST_Response
+    {
+        // Rimuove il lock cron se presente (potrebbe bloccare l'esecuzione)
+        delete_transient('fp_bridge_sync_lock');
+
+        $result = MasterSync::run_manual_sync(true);
+
+        return new WP_REST_Response([
+            'success'            => $result['success'] ?? false,
+            'updates_available'  => $result['updates_available'] ?? false,
+            'deploy_authorized'  => $result['deploy_authorized'] ?? false,
+            'installed'          => $result['installed_by_bridge'] ?? [],
+            'error'              => $result['error'] ?? null,
+        ], ($result['success'] ?? false) ? 200 : 500);
+    }
+}

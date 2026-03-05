@@ -151,6 +151,7 @@ class MasterSync
             'headers' => [
                 'X-FP-Client-Secret' => $secret,
                 'X-FP-Client-ID'     => $client_id,
+                'X-FP-Site-URL'      => site_url(),
             ],
         ]);
 
