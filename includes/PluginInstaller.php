@@ -175,8 +175,22 @@ class PluginInstaller
 
         $source_dir = self::find_plugin_root($temp_extract);
         if (!$source_dir || !is_dir($source_dir)) {
+            // Debug: elenca cosa c'è nella directory estratta
+            $contents = [];
+            foreach (glob($temp_extract . '/*') ?: [] as $f) {
+                $contents[] = basename($f) . (is_dir($f) ? '/' : '');
+            }
+            if (!empty($contents)) {
+                foreach (glob($temp_extract . '/*/') ?: [] as $subdir) {
+                    $phpfiles = glob($subdir . '*.php') ?: [];
+                    foreach ($phpfiles as $pf) {
+                        $data = @file_get_contents($pf, false, null, 0, 512);
+                        $contents[] = '  ' . basename($subdir) . '/' . basename($pf) . ' match=' . (preg_match('/Plugin Name\s*:/i', $data ?: '') ? 'YES' : 'NO');
+                    }
+                }
+            }
             $wp_filesystem->delete($temp_extract, true);
-            return ['error' => 'Struttura plugin non riconosciuta nello zip'];
+            return ['error' => 'Struttura non riconosciuta. Estratto: ' . implode(', ', $contents)];
         }
 
         // --- Determina cartella target (case-insensitive) ---
