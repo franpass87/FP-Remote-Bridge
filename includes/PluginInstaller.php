@@ -26,80 +26,26 @@ class PluginInstaller
      */
     private static function upgrade_self(string $github_repo, string $branch): bool|array
     {
-        self::load_wp_admin_deps();
-
-        if (!function_exists('download_url')) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-        }
-        if (!class_exists('WP_Upgrader')) {
-            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-        }
-        if (!class_exists('Plugin_Upgrader')) {
-            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-        }
-
-        // Costruisce URL download ZIP da GitHub
-        $token = get_option(self::OPTION_GITHUB_TOKEN, '');
-        if (!empty($token)) {
-            $zip_url = "https://api.github.com/repos/{$github_repo}/zipball/{$branch}";
-        } else {
-            $zip_url = "https://github.com/{$github_repo}/archive/refs/heads/{$branch}.zip";
-        }
-
-        // Trova il basename del plugin attivo
-        $plugin_basename = '';
+        // Trova la cartella esistente del Bridge (case-insensitive)
         $existing_dir = self::find_existing_plugin_dir('fp-remote-bridge');
-        if ($existing_dir) {
-            $plugin_basename = self::find_plugin_basename($existing_dir);
+        if (!$existing_dir) {
+            // Nessuna cartella esistente: usa install normale
+            return self::install_from_master([
+                'slug'        => 'fp-remote-bridge',
+                'github_repo' => $github_repo,
+                'branch'      => $branch,
+                '_skip_self'  => true, // evita ricorsione
+            ]);
         }
 
-        // Usa Plugin_Upgrader con skin silenziosa
-        $skin     = new \WP_Ajax_Upgrader_Skin();
-        $upgrader = new \Plugin_Upgrader($skin);
-
-        // Prepara il package: scarica lo ZIP
-        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
-        if (!file_exists($upgrade_dir)) {
-            wp_mkdir_p($upgrade_dir);
-        }
-        $temp_file = download_url($zip_url, 300);
-        if (is_wp_error($temp_file)) {
-            return ['error' => 'Download fallito: ' . $temp_file->get_error_message()];
-        }
-
-        // Usa il metodo install() dell'upgrader che gestisce tutto
-        ob_start();
-        $result = $upgrader->install($temp_file, [
-            'overwrite_package' => true,
+        // Usa install_from_master standard ma con il target_dir forzato
+        // alla cartella esistente (già gestito da find_existing_plugin_dir)
+        return self::install_from_master([
+            'slug'        => basename($existing_dir), // usa il nome esatto della cartella
+            'github_repo' => $github_repo,
+            'branch'      => $branch,
+            '_skip_self'  => true,
         ]);
-        ob_end_clean();
-        @unlink($temp_file);
-
-        if (is_wp_error($result)) {
-            return ['error' => 'Upgrader: ' . $result->get_error_message()];
-        }
-        if ($result === false) {
-            $errors = $skin->get_errors();
-            $msg = is_wp_error($errors) ? $errors->get_error_message() : 'Upgrader ha restituito false';
-            return ['error' => $msg];
-        }
-
-        // Riattiva il plugin se era attivo
-        if (!empty($plugin_basename)) {
-            $active = (array) get_option('active_plugins', []);
-            $is_active = false;
-            foreach ($active as $a) {
-                if (strtolower($a) === strtolower($plugin_basename)) {
-                    $is_active = true;
-                    break;
-                }
-            }
-            if (!$is_active) {
-                activate_plugin($plugin_basename, '', false, true);
-            }
-        }
-
-        return true;
     }
 
     /**
@@ -168,11 +114,9 @@ class PluginInstaller
             return ['error' => 'Slug non valido'];
         }
 
-        // Se stiamo aggiornando il Bridge stesso, usa WordPress Plugin Upgrader
-        // che gestisce correttamente l'aggiornamento di plugin attivi (incluso opcache).
-        // PluginInstaller non può aggiornare se stesso perché PHP ha già caricato
-        // il vecchio codice in memoria per questa richiesta.
-        if ($slug === 'fp-remote-bridge' && !empty($github_repo)) {
+        // Se stiamo aggiornando il Bridge stesso (e non siamo già in upgrade_self),
+        // forza l'uso della cartella esistente con il nome esatto (case-sensitive).
+        if ($slug === 'fp-remote-bridge' && !empty($github_repo) && empty($plugin['_skip_self'])) {
             return self::upgrade_self($github_repo, $branch);
         }
 

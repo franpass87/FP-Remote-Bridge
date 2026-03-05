@@ -107,6 +107,7 @@ class SyncEndpoint
             'deploy_authorized'  => $result['deploy_authorized'] ?? false,
             'installed'          => $result['installed_by_bridge'] ?? [],
             'error'              => $result['error'] ?? null,
+            'bridge_version'     => FP_REMOTE_BRIDGE_VERSION,
         ], ($result['success'] ?? false) ? 200 : 500);
     }
 }
