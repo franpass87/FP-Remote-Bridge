@@ -56,6 +56,8 @@ class SyncEndpoint
 
     /**
      * Esegue il sync immediato e restituisce il risultato.
+     * Dopo l'installazione fa un secondo ping al Master per aggiornare
+     * le versioni mostrate nella UI in tempo reale.
      */
     public static function handle_request(WP_REST_Request $request): WP_REST_Response
     {
@@ -63,6 +65,19 @@ class SyncEndpoint
         delete_transient('fp_bridge_sync_lock');
 
         $result = MasterSync::run_manual_sync(true);
+
+        // Se sono stati installati plugin, ri-pinga il Master con le versioni aggiornate
+        // così la UI del Master mostra subito la versione corretta senza aspettare il cron
+        if (!empty($result['installed_by_bridge'])) {
+            // Svuota la cache plugin di WordPress per leggere le versioni aggiornate dal filesystem
+            wp_clean_plugins_cache(false);
+            if (function_exists('get_plugins')) {
+                // Forza rilettura da disco
+                get_plugins('/');
+            }
+            delete_transient('fp_bridge_sync_lock');
+            MasterSync::run_manual_sync(false); // install=false: solo registra le versioni aggiornate
+        }
 
         return new WP_REST_Response([
             'success'            => $result['success'] ?? false,
