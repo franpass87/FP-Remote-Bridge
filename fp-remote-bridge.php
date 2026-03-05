@@ -1,4 +1,7 @@
 <?php
+/*
+Plugin Name: FP Remote Bridge
+*/
 /**
  * Plugin Name: FP Remote Bridge
  * Plugin URI: https://github.com/franpass87/FP-Remote-Bridge
