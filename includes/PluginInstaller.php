@@ -26,26 +26,62 @@ class PluginInstaller
      */
     private static function upgrade_self(string $github_repo, string $branch): bool|array
     {
-        // Trova la cartella esistente del Bridge (case-insensitive)
+        // Installa il Bridge in una cartella con nome DIVERSO da quella attuale.
+        // Questo bypassa opcache: PHP non ha in cache i file di una cartella nuova,
+        // quindi il nuovo codice viene caricato immediatamente alla prossima richiesta.
+        // La cartella vecchia viene rimossa da maybe_cleanup/cleanup_duplicate_dirs
+        // alla prossima richiesta, quando active_plugins è già aggiornato.
+
         $existing_dir = self::find_existing_plugin_dir('fp-remote-bridge');
-        if (!$existing_dir) {
-            // Nessuna cartella esistente: usa install normale
-            return self::install_from_master([
-                'slug'        => 'fp-remote-bridge',
-                'github_repo' => $github_repo,
-                'branch'      => $branch,
-                '_skip_self'  => true, // evita ricorsione
-            ]);
+        $existing_name = $existing_dir ? basename($existing_dir) : 'fp-remote-bridge';
+
+        // Genera un nome alternativo: se attuale è "fp-remote-bridge", usa "fp-remote-bridge-update"
+        // e viceversa, così si alterna tra due nomi.
+        if ($existing_name === 'fp-remote-bridge') {
+            $new_slug = 'fp-remote-bridge-update';
+        } else {
+            $new_slug = 'fp-remote-bridge';
         }
 
-        // Usa install_from_master standard ma con il target_dir forzato
-        // alla cartella esistente (già gestito da find_existing_plugin_dir)
-        return self::install_from_master([
-            'slug'        => basename($existing_dir), // usa il nome esatto della cartella
+        // Installa nella nuova cartella
+        $result = self::install_from_master([
+            'slug'        => $new_slug,
             'github_repo' => $github_repo,
             'branch'      => $branch,
             '_skip_self'  => true,
         ]);
+
+        if ($result !== true) {
+            return $result; // errore
+        }
+
+        // Aggiorna active_plugins per puntare alla nuova cartella
+        $new_dir = WP_PLUGIN_DIR . '/' . $new_slug;
+        $new_main = self::find_plugin_main_file($new_dir);
+        if (!$new_main) {
+            return ['error' => 'File principale non trovato nella nuova cartella Bridge'];
+        }
+        $new_basename = plugin_basename($new_main);
+
+        $active = (array) get_option('active_plugins', []);
+        $updated = false;
+        foreach ($active as &$a) {
+            if (stripos($a, 'fp-remote-bridge') !== false) {
+                $a = $new_basename;
+                $updated = true;
+                break;
+            }
+        }
+        unset($a);
+
+        if (!$updated) {
+            // Non era attivo: aggiungilo
+            $active[] = $new_basename;
+        }
+
+        update_option('active_plugins', array_values($active));
+
+        return true;
     }
 
     /**
@@ -115,7 +151,9 @@ class PluginInstaller
         }
 
         // Se stiamo aggiornando il Bridge stesso (e non siamo già in upgrade_self),
-        // forza l'uso della cartella esistente con il nome esatto (case-sensitive).
+        // installa in una cartella con nome diverso per bypassare opcache.
+        // PHP non ha in cache i file di una cartella nuova, quindi il nuovo codice
+        // viene caricato immediatamente alla prossima richiesta.
         if ($slug === 'fp-remote-bridge' && !empty($github_repo) && empty($plugin['_skip_self'])) {
             return self::upgrade_self($github_repo, $branch);
         }
@@ -463,6 +501,43 @@ class PluginInstaller
     }
 
     /**
+     * Rimuove la cartella Bridge alternativa (fp-remote-bridge-update o fp-remote-bridge)
+     * se non è quella attiva. Usata dopo upgrade_self per pulire la vecchia cartella.
+     */
+    public static function cleanup_bridge_update_dir(): void
+    {
+        if (!self::init_filesystem()) {
+            return;
+        }
+        global $wp_filesystem;
+
+        $active_plugins = (array) get_option('active_plugins', []);
+        $active_bridge_dir = null;
+        foreach ($active_plugins as $a) {
+            if (stripos($a, 'fp-remote-bridge') !== false) {
+                $active_bridge_dir = strtolower(dirname($a));
+                break;
+            }
+        }
+
+        if (!$active_bridge_dir) {
+            return;
+        }
+
+        // Rimuovi le cartelle Bridge non-attive
+        $candidates = ['fp-remote-bridge', 'fp-remote-bridge-update'];
+        foreach ($candidates as $candidate) {
+            if ($candidate === $active_bridge_dir) {
+                continue; // non rimuovere quella attiva
+            }
+            $dir = WP_PLUGIN_DIR . '/' . $candidate;
+            if (is_dir($dir)) {
+                $wp_filesystem->delete($dir, true);
+            }
+        }
+    }
+
+    /**
      * Esegue la pulizia dei duplicati solo una volta per versione Bridge.
      * Chiamato da plugins_loaded dopo ogni aggiornamento del Bridge.
      * NON esegue sync remoto (troppo lento per plugins_loaded).
@@ -489,6 +564,9 @@ class PluginInstaller
 
             try {
                 self::cleanup_duplicate_dirs();
+                // Rimuovi anche la cartella Bridge alternativa (fp-remote-bridge-update
+                // o fp-remote-bridge) se non è quella attiva
+                self::cleanup_bridge_update_dir();
                 update_option($done_key, time(), false);
             } finally {
                 delete_transient($lock_key);

@@ -6,7 +6,7 @@ Plugin Name: FP Remote Bridge
  * Plugin Name: FP Remote Bridge
  * Plugin URI: https://github.com/franpass87/FP-Remote-Bridge
  * Description: Connettore per siti remoti che ricevono pubblicazioni e dati SEO da FP Publisher e altri prodotti FP.
- * Version: 1.2.4
+ * Version: 1.2.5
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FP_REMOTE_BRIDGE_VERSION', '1.2.4');
+define('FP_REMOTE_BRIDGE_VERSION', '1.2.5');
 define('FP_REMOTE_BRIDGE_FILE', __FILE__);
 define('FP_REMOTE_BRIDGE_DIR', plugin_dir_path(__FILE__));
 define('FP_REMOTE_BRIDGE_BASENAME', plugin_basename(__FILE__));
@@ -62,3 +62,18 @@ add_action('plugins_loaded', function() {
     // Pulizia automatica cartelle duplicate (eseguita una sola volta per versione)
     \FP\RemoteBridge\PluginInstaller::maybe_cleanup();
 }, 10);
+
+// Invalida opcache per i file del Bridge ad ogni richiesta.
+// Necessario su hosting con opcache.validate_timestamps=0 per garantire che
+// dopo un aggiornamento del Bridge il nuovo codice venga caricato immediatamente.
+if (function_exists('opcache_invalidate') && defined('FP_REMOTE_BRIDGE_DIR')) {
+    $bridge_dir = FP_REMOTE_BRIDGE_DIR;
+    $iter = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($bridge_dir, RecursiveDirectoryIterator::SKIP_DOTS)
+    );
+    foreach ($iter as $file) {
+        if ($file->getExtension() === 'php') {
+            @opcache_invalidate($file->getPathname(), false);
+        }
+    }
+}
