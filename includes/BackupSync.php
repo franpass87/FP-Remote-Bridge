@@ -156,24 +156,23 @@ class BackupSync
             return self::upload_via_curl($file_path, $url, $secret, $client_id);
         }
 
-        $base = rtrim($url, '/');
-        if (strpos($base, '/wp-json/') === false) {
-            $endpoint = $base . '/wp-json/fp-git-updater/v1/receive-backup';
-        } else {
-            $endpoint = preg_replace('#/wp-json/.*$#', '/wp-json/fp-git-updater/v1/receive-backup', $base);
+        $endpoint = MasterSync::build_master_endpoint('fp-git-updater/v1/receive-backup');
+        if ($endpoint === null) {
+            return ['success' => false, 'error' => 'URL Master non valido'];
         }
 
         if (empty($client_id)) {
             $client_id = sanitize_file_name(parse_url(site_url(), PHP_URL_HOST) ?: 'client');
         }
 
+        $safe_filename = sanitize_file_name(basename($file_path));
         $boundary = wp_generate_password(24, false);
         $body = '';
         $body .= '--' . $boundary . "\r\n";
         $body .= 'Content-Disposition: form-data; name="client_id"' . "\r\n\r\n";
         $body .= $client_id . "\r\n";
         $body .= '--' . $boundary . "\r\n";
-        $body .= 'Content-Disposition: form-data; name="file"; filename="' . basename($file_path) . '"' . "\r\n";
+        $body .= 'Content-Disposition: form-data; name="file"; filename="' . $safe_filename . '"' . "\r\n";
         $body .= 'Content-Type: application/zip' . "\r\n\r\n";
         $body .= file_get_contents($file_path) . "\r\n";
         $body .= '--' . $boundary . '--';
@@ -216,11 +215,9 @@ class BackupSync
             return ['success' => false, 'error' => 'cURL non disponibile e file troppo grande per wp_remote_post'];
         }
 
-        $base = rtrim($url, '/');
-        if (strpos($base, '/wp-json/') === false) {
-            $endpoint = $base . '/wp-json/fp-git-updater/v1/receive-backup';
-        } else {
-            $endpoint = preg_replace('#/wp-json/.*$#', '/wp-json/fp-git-updater/v1/receive-backup', $base);
+        $endpoint = MasterSync::build_master_endpoint('fp-git-updater/v1/receive-backup');
+        if ($endpoint === null) {
+            return ['success' => false, 'error' => 'URL Master non valido'];
         }
 
         if (empty($client_id)) {

@@ -114,21 +114,10 @@ class MasterSync
             return ['ok' => false, 'error' => 'Master non configurato'];
         }
 
-        // Costruisce sempre l'endpoint dalla root del sito, ignorando qualsiasi path esistente.
-        // Estrae schema + host + eventuale sottocartella WordPress, poi aggiunge il percorso REST.
-        $parsed   = parse_url(rtrim($url, '/'));
-        $base     = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
-        if (!empty($parsed['port'])) {
-            $base .= ':' . $parsed['port'];
+        $endpoint = self::build_master_endpoint('fp-git-updater/v1/master-updates-status');
+        if ($endpoint === null) {
+            return ['ok' => false, 'error' => 'URL Master non valido'];
         }
-        // Se l'URL include un path che contiene '/wp-json/', usa la parte prima di esso come base WP
-        $path = $parsed['path'] ?? '';
-        $wp_json_pos = strpos($path, '/wp-json/');
-        if ($wp_json_pos !== false) {
-            $path = substr($path, 0, $wp_json_pos);
-        }
-        // Se il path non contiene wp-json ma termina con un percorso REST, tronca al path WP root
-        $endpoint = $base . rtrim($path, '/') . '/wp-json/fp-git-updater/v1/master-updates-status';
 
         // client_id e secret PRIMA (essenziali) - installed_plugins può essere lunghissimo
         $client_id = self::get_client_identifier();
@@ -322,6 +311,35 @@ class MasterSync
         }
 
         return array_values(array_unique(array_filter($entries)));
+    }
+
+    /**
+     * Costruisce un endpoint REST sicuro a partire dall'URL Master configurato.
+     * Estrae schema + host + sottocartella WP, ignora qualsiasi path REST esistente.
+     *
+     * @param string $rest_path Percorso REST dopo /wp-json/ (es. "fp-git-updater/v1/receive-backup")
+     * @return string|null URL completo oppure null se l'URL è malformato
+     */
+    public static function build_master_endpoint(string $rest_path): ?string
+    {
+        $url = get_option(self::OPTION_MASTER_URL, '');
+        if (empty($url)) {
+            return null;
+        }
+        $parsed = parse_url(rtrim($url, '/'));
+        if ($parsed === false || empty($parsed['host'])) {
+            return null;
+        }
+        $base = ($parsed['scheme'] ?? 'https') . '://' . $parsed['host'];
+        if (!empty($parsed['port'])) {
+            $base .= ':' . $parsed['port'];
+        }
+        $path = $parsed['path'] ?? '';
+        $wp_json_pos = strpos($path, '/wp-json/');
+        if ($wp_json_pos !== false) {
+            $path = substr($path, 0, $wp_json_pos);
+        }
+        return $base . rtrim($path, '/') . '/wp-json/' . ltrim($rest_path, '/');
     }
 
     /**

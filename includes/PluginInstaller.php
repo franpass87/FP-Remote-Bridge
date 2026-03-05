@@ -188,9 +188,12 @@ class PluginInstaller
                     $wp_filesystem->delete($temp_extract, true);
                     return ['error' => 'Impossibile creare backup della cartella esistente'];
                 }
-                // $target_dir è ancora intatta, la svuotiamo manualmente prima di sovrascrivere
-                $wp_filesystem->delete($target_dir, true);
-                $backup_dir = $backup_dir; // backup valido: contiene la vecchia versione
+                if (!$wp_filesystem->delete($target_dir, true)) {
+                    // delete fallito: ripristiniamo il backup e usciamo
+                    $wp_filesystem->delete($temp_extract, true);
+                    $wp_filesystem->delete($backup_dir, true);
+                    return ['error' => 'Impossibile rimuovere la cartella esistente per l\'aggiornamento'];
+                }
             }
         }
 
@@ -252,18 +255,18 @@ class PluginInstaller
         // e catturiamo output con ob_start(). Il blocco finally garantisce il cleanup.
         $wp_die_called = false;
 
-        $wp_die_filter = add_filter('wp_die_handler', function() use (&$wp_die_called) {
-            return function() use (&$wp_die_called) {
+        $wp_die_callback = function () use (&$wp_die_called) {
+            return function () use (&$wp_die_called) {
                 $wp_die_called = true;
-                // cattura l'output residuo se ob_start è attivo
                 if (ob_get_level() > 0) {
                     ob_end_clean();
                 }
             };
-        }, PHP_INT_MAX);
+        };
+        add_filter('wp_die_handler', $wp_die_callback, PHP_INT_MAX);
 
-        set_error_handler(function() {
-            return true; // silenzia E_WARNING/E_NOTICE durante l'attivazione
+        set_error_handler(function () {
+            return true;
         });
 
         $result = null;
@@ -279,7 +282,7 @@ class PluginInstaller
             }
         } finally {
             restore_error_handler();
-            remove_filter('wp_die_handler', $wp_die_filter, PHP_INT_MAX);
+            remove_filter('wp_die_handler', $wp_die_callback, PHP_INT_MAX);
         }
 
         if ($wp_die_called || is_wp_error($result)) {
@@ -366,7 +369,9 @@ class PluginInstaller
     private static function copy_dir(string $src, string $dest, \WP_Filesystem_Base $wp_fs): bool
     {
         if (!$wp_fs->exists($dest)) {
-            $wp_fs->mkdir($dest, FS_CHMOD_DIR);
+            if (!$wp_fs->mkdir($dest, FS_CHMOD_DIR)) {
+                return false;
+            }
         }
 
         $iterator = new \RecursiveIteratorIterator(
@@ -374,21 +379,24 @@ class PluginInstaller
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
+        $ok      = true;
         $src_len = strlen($src);
         foreach ($iterator as $item) {
             $rel       = ltrim(substr($item->getPathname(), $src_len), DIRECTORY_SEPARATOR . '/');
             $dest_path = $dest . DIRECTORY_SEPARATOR . $rel;
 
             if ($item->isDir()) {
-                if (!$wp_fs->exists($dest_path)) {
-                    $wp_fs->mkdir($dest_path, FS_CHMOD_DIR);
+                if (!$wp_fs->exists($dest_path) && !$wp_fs->mkdir($dest_path, FS_CHMOD_DIR)) {
+                    $ok = false;
                 }
             } else {
-                $wp_fs->copy($item->getPathname(), $dest_path, true, FS_CHMOD_FILE);
+                if (!$wp_fs->copy($item->getPathname(), $dest_path, true, FS_CHMOD_FILE)) {
+                    $ok = false;
+                }
             }
         }
 
-        return true;
+        return $ok;
     }
 
     /**
