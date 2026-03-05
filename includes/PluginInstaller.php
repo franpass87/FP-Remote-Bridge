@@ -15,7 +15,8 @@ if (!defined('ABSPATH')) {
 
 class PluginInstaller
 {
-    public const OPTION_GITHUB_TOKEN = 'fp_remote_bridge_github_token';
+    public const OPTION_GITHUB_TOKEN        = 'fp_remote_bridge_github_token';
+    public const OPTION_CLEANUP_DONE_VERSION = 'fp_remote_bridge_cleanup_done_v';
 
     /**
      * Installa o aggiorna un plugin dalla risposta Master
@@ -239,5 +240,99 @@ class PluginInstaller
             }
         }
         return true;
+    }
+
+    /**
+     * Esegue la pulizia dei duplicati solo una volta per versione Bridge.
+     * Chiamato da plugins_loaded dopo ogni aggiornamento del Bridge.
+     */
+    public static function maybe_cleanup(): void
+    {
+        $done_key = self::OPTION_CLEANUP_DONE_VERSION . FP_REMOTE_BRIDGE_VERSION;
+        if (get_option($done_key)) {
+            return;
+        }
+        $removed = self::cleanup_duplicate_dirs();
+        update_option($done_key, time(), false);
+        if (!empty($removed)) {
+            \FP\RemoteBridge\MasterSync::run_sync();
+        }
+    }
+
+    /**
+     * Cerca e rimuove cartelle plugin duplicate con nomi case-insensitive identici
+     * ma diversi da quello del plugin attivo (es. "fp-remote-bridge" se esiste "FP-Remote-Bridge").
+     *
+     * @return array<string> Elenco delle cartelle rimosse
+     */
+    public static function cleanup_duplicate_dirs(): array
+    {
+        $plugin_dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
+
+        // Raggruppa le cartelle per nome lowercase
+        $groups = [];
+        foreach ($plugin_dirs as $dir) {
+            $key = strtolower(basename($dir));
+            $groups[$key][] = $dir;
+        }
+
+        $removed = [];
+
+        foreach ($groups as $key => $dirs) {
+            if (count($dirs) <= 1) {
+                continue;
+            }
+
+            // Trova la cartella "canonica": quella con un plugin attivo (file PHP con Plugin Name:)
+            $canonical = null;
+            $active_plugins = (array) get_option('active_plugins', []);
+
+            foreach ($dirs as $dir) {
+                $base = basename($dir);
+                foreach ($active_plugins as $active) {
+                    // $active è "slug/file.php"
+                    if (strpos($active, $base . '/') === 0) {
+                        $canonical = $dir;
+                        break 2;
+                    }
+                }
+            }
+
+            // Se nessuna è attiva, usa quella con il nome più lungo (originale con maiuscole)
+            if (!$canonical) {
+                usort($dirs, fn($a, $b) => strlen(basename($b)) - strlen(basename($a)));
+                $canonical = $dirs[0];
+            }
+
+            // Rimuovi tutte le altre
+            foreach ($dirs as $dir) {
+                if ($dir === $canonical) {
+                    continue;
+                }
+                // Verifica che non ci sia un plugin attivo in questa cartella
+                $base = basename($dir);
+                $is_active = false;
+                foreach ($active_plugins as $active) {
+                    if (strpos($active, $base . '/') === 0) {
+                        $is_active = true;
+                        break;
+                    }
+                }
+                if ($is_active) {
+                    continue; // Non rimuovere cartelle con plugin attivi
+                }
+
+                // Rimozione sicura
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+                WP_Filesystem();
+                global $wp_filesystem;
+                if ($wp_filesystem && $wp_filesystem->is_dir($dir)) {
+                    $wp_filesystem->delete($dir, true);
+                    $removed[] = $dir;
+                }
+            }
+        }
+
+        return $removed;
     }
 }
