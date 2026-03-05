@@ -25,6 +25,12 @@ class SyncEndpoint
      */
     public static function register(): void
     {
+        register_rest_route('fp-remote-bridge/v1', '/status', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_status'],
+            'permission_callback' => [self::class, 'check_permission'],
+        ]);
+
         register_rest_route('fp-remote-bridge/v1', '/trigger-sync', [
             'methods'             => 'POST',
             'callback'            => [self::class, 'handle_request'],
@@ -59,6 +65,30 @@ class SyncEndpoint
      * Dopo l'installazione fa un secondo ping al Master per aggiornare
      * le versioni mostrate nella UI in tempo reale.
      */
+    public static function handle_status(WP_REST_Request $request): WP_REST_Response
+    {
+        $active_plugins = (array) get_option('active_plugins', []);
+        $bridge_entry   = '';
+        foreach ($active_plugins as $a) {
+            if (stripos($a, 'fp-remote-bridge') !== false) {
+                $bridge_entry = $a;
+                break;
+            }
+        }
+
+        $bridge_dir = WP_PLUGIN_DIR . '/' . dirname($bridge_entry);
+        $dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        $bridge_dirs = array_filter($dirs, fn($d) => stripos(basename($d), 'fp-remote-bridge') !== false);
+
+        return new WP_REST_Response([
+            'bridge_version'    => FP_REMOTE_BRIDGE_VERSION,
+            'bridge_entry'      => $bridge_entry,
+            'bridge_dir_exists' => is_dir($bridge_dir),
+            'bridge_dirs'       => array_values(array_map('basename', $bridge_dirs)),
+            'opcache_enabled'   => function_exists('opcache_get_status') ? (bool)@opcache_get_status()['opcache_enabled'] : null,
+        ], 200);
+    }
+
     public static function handle_request(WP_REST_Request $request): WP_REST_Response
     {
         // Rimuove il lock cron se presente (potrebbe bloccare l'esecuzione)
@@ -67,23 +97,19 @@ class SyncEndpoint
         $result = MasterSync::run_manual_sync(true);
 
         // Se sono stati installati plugin, ri-pinga il Master con le versioni aggiornate
-        // così la UI del Master mostra subito la versione corretta senza aspettare il cron
         if (!empty($result['installed_by_bridge'])) {
-            // Svuota la cache plugin di WordPress per leggere le versioni aggiornate dal filesystem
+            // Svuota la cache plugin di WordPress
             wp_clean_plugins_cache(false);
             if (function_exists('get_plugins')) {
                 get_plugins('/');
             }
 
-            // Invalida opcache per i file aggiornati: senza questo, PHP riusa il vecchio
-            // bytecode in memoria anche se i file sul disco sono stati sostituiti.
+            // Invalida opcache per i file aggiornati
             if (function_exists('opcache_reset')) {
                 @opcache_reset();
             } elseif (function_exists('opcache_invalidate')) {
-                // Invalida ricorsivamente la cartella plugin
-                $plugin_dir = WP_PLUGIN_DIR;
                 $iter = new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator($plugin_dir, \RecursiveDirectoryIterator::SKIP_DOTS)
+                    new \RecursiveDirectoryIterator(WP_PLUGIN_DIR, \RecursiveDirectoryIterator::SKIP_DOTS)
                 );
                 foreach ($iter as $file) {
                     if ($file->getExtension() === 'php') {
@@ -92,21 +118,19 @@ class SyncEndpoint
                 }
             }
 
-            // Forza cleanup cartelle duplicate alla prossima richiesta (non ora):
-            // se il Bridge stesso è stato aggiornato, active_plugins è stato modificato
-            // nel DB ma PHP ha ancora il vecchio valore in memoria. Chiamare cleanup_duplicate_dirs()
-            // ora rimuoverebbe la nuova cartella appena installata.
-            // Invece, cancella il flag "cleanup done" così maybe_cleanup si riesegue
-            // alla prossima richiesta quando active_plugins è già aggiornato.
+            // Cancella il flag cleanup per forzare maybe_cleanup alla prossima richiesta
             $cleanup_key = PluginInstaller::OPTION_CLEANUP_DONE_VERSION . FP_REMOTE_BRIDGE_VERSION;
             delete_option($cleanup_key);
-            // Cleanup immediato solo se il Bridge NON è tra i plugin appena installati
+
+            // Cleanup immediato solo se il Bridge NON è tra i plugin appena installati.
+            // Se il Bridge si è aggiornato, active_plugins è stato modificato nel DB ma
+            // PHP ha ancora il vecchio valore in memoria: cleanup ora rimuoverebbe la nuova cartella.
             if (!isset($result['installed_by_bridge']['fp-remote-bridge'])) {
                 PluginInstaller::cleanup_duplicate_dirs();
             }
 
             delete_transient('fp_bridge_sync_lock');
-            MasterSync::run_manual_sync(false); // install=false: solo registra le versioni aggiornate
+            MasterSync::run_manual_sync(false); // solo registra le versioni aggiornate
         }
 
         return new WP_REST_Response([
