@@ -479,9 +479,10 @@ class PluginInstaller
     }
 
     /**
-     * Cerca e rimuove cartelle plugin duplicate con nomi case-insensitive identici
-     * ma diversi da quello del plugin attivo (es. "fp-remote-bridge" se esiste "FP-Remote-Bridge").
-     * Non rimuove MAI cartelle con plugin attivi.
+     * Cerca e risolve cartelle plugin duplicate con nomi case-insensitive identici.
+     * Se trova due cartelle per lo stesso plugin (es. "FP-Remote-Bridge" e "fp-remote-bridge"),
+     * mantiene quella con la versione più alta aggiornando active_plugins se necessario,
+     * poi rimuove quella obsoleta.
      *
      * @return array<string> Elenco delle cartelle rimosse
      */
@@ -508,29 +509,72 @@ class PluginInstaller
                 continue;
             }
 
-            // Trova la cartella canonica: quella con un plugin ATTIVO
-            $canonical = null;
+            // Per ogni cartella, trova il file principale e legge la versione
+            $dir_versions = [];
+            foreach ($dirs as $dir) {
+                $main = self::find_plugin_main_file($dir);
+                if (!$main) {
+                    continue;
+                }
+                $data = @file_get_contents($main, false, null, 0, 8192);
+                $version = '';
+                if ($data && preg_match('/^\s*\*?\s*Version\s*:\s*(.+)$/im', $data, $m)) {
+                    $version = trim($m[1]);
+                }
+                $dir_versions[$dir] = $version;
+            }
+
+            if (empty($dir_versions)) {
+                continue;
+            }
+
+            // Trova la cartella con la versione più alta
+            $best_dir = null;
+            $best_ver = '';
+            foreach ($dir_versions as $dir => $ver) {
+                if ($best_dir === null || version_compare($ver, $best_ver, '>')) {
+                    $best_dir = $dir;
+                    $best_ver = $ver;
+                }
+            }
+
+            if (!$best_dir) {
+                continue;
+            }
+
+            // Trova la cartella attualmente attiva in active_plugins
+            $active_dir  = null;
+            $active_entry = null;
             foreach ($dirs as $dir) {
                 $base = basename($dir);
                 foreach ($active_plugins as $active) {
                     if (strpos($active, $base . '/') === 0) {
-                        $canonical = $dir;
+                        $active_dir   = $dir;
+                        $active_entry = $active;
                         break 2;
                     }
                 }
             }
 
-            // Se nessuna è attiva, non rimuovere nulla — troppo rischioso
-            if (!$canonical) {
-                continue;
+            // Se la cartella migliore non è quella attiva, aggiorna active_plugins
+            if ($active_dir && $best_dir !== $active_dir) {
+                $best_main = self::find_plugin_main_file($best_dir);
+                if ($best_main) {
+                    $new_entry = plugin_basename($best_main);
+                    $updated   = array_map(function ($a) use ($active_entry, $new_entry) {
+                        return $a === $active_entry ? $new_entry : $a;
+                    }, $active_plugins);
+                    update_option('active_plugins', array_values($updated));
+                    $active_plugins = $updated;
+                    $active_dir     = $best_dir;
+                }
             }
 
-            // Rimuovi solo le non-canoniche che non hanno plugin attivi
+            // Rimuovi tutte le cartelle tranne quella migliore/attiva
             foreach ($dirs as $dir) {
-                if ($dir === $canonical) {
+                if ($dir === $best_dir) {
                     continue;
                 }
-
                 $base      = basename($dir);
                 $is_active = false;
                 foreach ($active_plugins as $active) {
@@ -539,11 +583,9 @@ class PluginInstaller
                         break;
                     }
                 }
-
                 if ($is_active) {
-                    continue; // sicurezza: non toccare mai cartelle con plugin attivi
+                    continue; // non rimuovere mai cartelle con plugin ancora attivi
                 }
-
                 if ($wp_filesystem->is_dir($dir)) {
                     $wp_filesystem->delete($dir, true);
                     $removed[] = $dir;
