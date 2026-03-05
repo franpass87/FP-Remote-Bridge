@@ -183,13 +183,14 @@ class PluginInstaller
         if (is_dir($target_dir)) {
             $backup_dir = $upgrade_dir . '/fp-bridge-backup-' . basename($target_dir) . '-' . time();
             if (!@rename($target_dir, $backup_dir)) {
-                // rename fallito (cross-device): copia e poi rimuovi
-                if (!self::copy_dir($source_dir, $backup_dir, $wp_filesystem)) {
+                // rename fallito (cross-device): copia $target_dir (vecchia versione) in $backup_dir
+                if (!self::copy_dir($target_dir, $backup_dir, $wp_filesystem)) {
                     $wp_filesystem->delete($temp_extract, true);
                     return ['error' => 'Impossibile creare backup della cartella esistente'];
                 }
-                // In questo caso $target_dir è ancora intatta, procediamo con la copia diretta
-                $backup_dir = null; // non c'è backup vero da ripristinare
+                // $target_dir è ancora intatta, la svuotiamo manualmente prima di sovrascrivere
+                $wp_filesystem->delete($target_dir, true);
+                $backup_dir = $backup_dir; // backup valido: contiene la vecchia versione
             }
         }
 
@@ -246,9 +247,23 @@ class PluginInstaller
             }
         }
 
-        // activate_plugin() può generare output e chiamare wp_die() in caso di errore.
-        // Lo eseguiamo in un contesto protetto: output buffer + error handler temporaneo.
-        $previous_error_handler = set_error_handler(function() {
+        // activate_plugin() può generare output, chiamare wp_die(), o lanciare Throwable.
+        // Intercettiamo wp_die() tramite filtro, silenzializziamo warning con error handler,
+        // e catturiamo output con ob_start(). Il blocco finally garantisce il cleanup.
+        $wp_die_called  = false;
+        $die_handler_id = 'fp_bridge_activate_die_' . mt_rand();
+
+        $wp_die_filter = add_filter('wp_die_handler', function() use (&$wp_die_called, $die_handler_id) {
+            return function() use (&$wp_die_called) {
+                $wp_die_called = true;
+                // cattura l'output residuo se ob_start è attivo
+                if (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+            };
+        }, PHP_INT_MAX);
+
+        set_error_handler(function() {
             return true; // silenzia E_WARNING/E_NOTICE durante l'attivazione
         });
 
@@ -256,20 +271,20 @@ class PluginInstaller
         try {
             ob_start();
             $result = activate_plugin($plugin_basename, '', false, true);
-            ob_end_clean();
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
         } catch (\Throwable $e) {
-            ob_end_clean();
-            // Il plugin ha un errore fatale — non attivare, non fare nulla
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+        } finally {
             restore_error_handler();
-            return;
+            remove_filter('wp_die_handler', $wp_die_filter, PHP_INT_MAX);
         }
 
-        restore_error_handler();
-
-        if (is_wp_error($result)) {
-            // activate_plugin ha rifiutato il plugin (es. requisiti non soddisfatti).
-            // NON forziamo l'attivazione manuale: potrebbe causare fatal al prossimo caricamento.
-            return;
+        if ($wp_die_called || is_wp_error($result)) {
+            return; // Il plugin ha chiamato wp_die() o ha rifiutato l'attivazione
         }
 
         // Attivazione riuscita — WordPress ha già aggiornato active_plugins
@@ -388,13 +403,25 @@ class PluginInstaller
             return;
         }
 
-        // Esegui la pulizia su init, non su plugins_loaded, per avere tutto il contesto WP
+        // Esegui la pulizia su init per avere tutto il contesto WP
         add_action('init', function () use ($done_key) {
             if (get_option($done_key)) {
-                return; // doppio check per concorrenza
+                return;
             }
-            self::cleanup_duplicate_dirs();
-            update_option($done_key, time(), false);
+
+            // Transient lock atomico per evitare esecuzioni concorrenti
+            $lock_key = 'fp_bridge_cleanup_lock_' . FP_REMOTE_BRIDGE_VERSION;
+            if (get_transient($lock_key)) {
+                return;
+            }
+            set_transient($lock_key, 1, 60);
+
+            try {
+                self::cleanup_duplicate_dirs();
+                update_option($done_key, time(), false);
+            } finally {
+                delete_transient($lock_key);
+            }
         }, 1);
     }
 

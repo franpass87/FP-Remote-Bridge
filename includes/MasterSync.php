@@ -28,7 +28,11 @@ class MasterSync
     {
         add_filter('cron_schedules', [self::class, 'add_cron_intervals']);
         add_action(self::CRON_HOOK, [self::class, 'run_sync']);
+        // Verifica cron su admin_init (contesto admin) e su wp_loaded (contesto frontend/cron)
         add_action('admin_init', [self::class, 'ensure_cron_scheduled']);
+        if (!is_admin()) {
+            add_action('wp_loaded', [self::class, 'ensure_cron_scheduled']);
+        }
         add_action('update_option_' . self::OPTION_MASTER_URL, [self::class, 'reschedule_cron']);
         add_action('update_option_' . self::OPTION_MASTER_SECRET, [self::class, 'reschedule_cron']);
         add_action('update_option_' . self::OPTION_SYNC_INTERVAL, [self::class, 'reschedule_cron']);
@@ -110,12 +114,21 @@ class MasterSync
             return ['ok' => false, 'error' => 'Master non configurato'];
         }
 
-        $endpoint = rtrim($url, '/');
-        if (strpos($endpoint, '/wp-json/') === false) {
-            $endpoint .= '/wp-json/fp-git-updater/v1/master-updates-status';
-        } elseif (strpos($endpoint, 'master-updates-status') === false) {
-            $endpoint = preg_replace('#/wp-json/.*$#', '/wp-json/fp-git-updater/v1/master-updates-status', $endpoint);
+        // Costruisce sempre l'endpoint dalla root del sito, ignorando qualsiasi path esistente.
+        // Estrae schema + host + eventuale sottocartella WordPress, poi aggiunge il percorso REST.
+        $parsed   = parse_url(rtrim($url, '/'));
+        $base     = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        if (!empty($parsed['port'])) {
+            $base .= ':' . $parsed['port'];
         }
+        // Se l'URL include un path che contiene '/wp-json/', usa la parte prima di esso come base WP
+        $path = $parsed['path'] ?? '';
+        $wp_json_pos = strpos($path, '/wp-json/');
+        if ($wp_json_pos !== false) {
+            $path = substr($path, 0, $wp_json_pos);
+        }
+        // Se il path non contiene wp-json ma termina con un percorso REST, tronca al path WP root
+        $endpoint = $base . rtrim($path, '/') . '/wp-json/fp-git-updater/v1/master-updates-status';
 
         // client_id e secret PRIMA (essenziali) - installed_plugins può essere lunghissimo
         $client_id = self::get_client_identifier();
@@ -126,11 +139,21 @@ class MasterSync
         ];
         $installed_slugs = self::get_installed_plugin_slugs();
         if (!empty($installed_slugs)) {
-            $plugins_str = implode(',', array_slice($installed_slugs, 0, 80)); // max 80 per evitare URL troppo lunga
-            if (strlen($plugins_str) > 1500) {
-                $plugins_str = substr($plugins_str, 0, 1500); // taglia se eccede
+            // Costruisce la stringa rispettando il limite senza troncare a metà uno slug
+            $chunks      = [];
+            $total_len   = 0;
+            $max_len     = 1500;
+            foreach (array_slice($installed_slugs, 0, 80) as $slug_entry) {
+                $piece = empty($chunks) ? $slug_entry : ',' . $slug_entry;
+                if ($total_len + strlen($piece) > $max_len) {
+                    break;
+                }
+                $chunks[]   = $slug_entry;
+                $total_len += strlen($piece);
             }
-            $args_query['installed_plugins'] = $plugins_str;
+            if (!empty($chunks)) {
+                $args_query['installed_plugins'] = implode(',', $chunks);
+            }
         }
         $endpoint = add_query_arg($args_query, $endpoint);
 
@@ -138,7 +161,7 @@ class MasterSync
             'timeout' => 30,
             'headers' => [
                 'X-FP-Client-Secret' => $secret,
-                'X-FP-Client-ID' => self::get_client_identifier(),
+                'X-FP-Client-ID'     => $client_id,
             ],
         ]);
 
@@ -162,9 +185,25 @@ class MasterSync
     }
 
     /**
-     * Esegue il polling verso il Master e, se ci sono aggiornamenti, triggera FP Updater o PluginInstaller
+     * Esegue il polling verso il Master e, se ci sono aggiornamenti, triggera FP Updater o PluginInstaller.
+     * Usa un transient lock per evitare esecuzioni concorrenti (cron ogni minuto + traffico HTTP).
      */
     public static function run_sync(): void
+    {
+        $lock_key = 'fp_bridge_sync_lock';
+        if (get_transient($lock_key)) {
+            return; // già in esecuzione
+        }
+        set_transient($lock_key, 1, 90); // lock per max 90 secondi
+
+        try {
+            self::do_sync();
+        } finally {
+            delete_transient($lock_key);
+        }
+    }
+
+    private static function do_sync(): void
     {
         $result = self::fetch_master_status();
         if (!$result['ok']) {
