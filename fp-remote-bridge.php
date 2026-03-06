@@ -6,7 +6,7 @@ Plugin Name: FP Remote Bridge
  * Plugin Name: FP Remote Bridge
  * Plugin URI: https://github.com/franpass87/FP-Remote-Bridge
  * Description: Connettore per siti remoti che ricevono pubblicazioni e dati SEO da FP Publisher e altri prodotti FP.
- * Version: 1.2.8
+ * Version: 1.2.9
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FP_REMOTE_BRIDGE_VERSION', '1.2.8');
+define('FP_REMOTE_BRIDGE_VERSION', '1.2.9');
 define('FP_REMOTE_BRIDGE_FILE', __FILE__);
 define('FP_REMOTE_BRIDGE_DIR', plugin_dir_path(__FILE__));
 define('FP_REMOTE_BRIDGE_BASENAME', plugin_basename(__FILE__));
@@ -55,29 +55,6 @@ register_deactivation_hook(__FILE__, function () {
     MasterSync::unschedule_cron();
     BackupSync::unschedule_cron();
 });
-
-// Se questo file viene caricato da una cartella diversa da quella in active_plugins
-// (es. "fp-remote-bridge-new" mentre active_plugins ha ancora "fp-remote-bridge"),
-// aggiorna active_plugins per puntare a questo file e disattiva la versione vecchia.
-// Questo viene eseguito PRIMA di plugins_loaded, quindi funziona anche se il vecchio
-// Bridge è ancora in active_plugins.
-add_action('muplugins_loaded', function () {
-    $my_basename = plugin_basename(__FILE__);
-    $active      = (array) get_option('active_plugins', []);
-
-    $found_exact  = in_array($my_basename, $active, true);
-    $found_others = array_filter($active, function ($a) use ($my_basename) {
-        return $a !== $my_basename && stripos($a, 'fp-remote-bridge') !== false;
-    });
-
-    if (!$found_exact && !empty($found_others)) {
-        // Sostituisci il vecchio entry con questo
-        $updated = array_map(function ($a) use ($my_basename, $found_others) {
-            return in_array($a, $found_others, true) ? $my_basename : $a;
-        }, $active);
-        update_option('active_plugins', array_values(array_unique($updated)));
-    }
-}, 0);
 
 add_action('plugins_loaded', function() {
     load_plugin_textdomain('fp-remote-bridge', false, dirname(FP_REMOTE_BRIDGE_BASENAME) . '/languages');

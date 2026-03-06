@@ -79,9 +79,15 @@ class SyncEndpoint
      */
     public static function handle_install_log(WP_REST_Request $request): WP_REST_Response
     {
-        $log_file = WP_CONTENT_DIR . '/fp-bridge-install.log';
-        $content  = @file_get_contents($log_file) ?: '(vuoto)';
-        return new WP_REST_Response(['log' => $content], 200);
+        // Legge i dati di installazione salvati nel DB
+        $data = [];
+        foreach (['fp-remote-bridge', 'fp-restaurant-reservations', 'fp-experiences'] as $slug) {
+            $v = get_option('fp_bridge_last_install_' . $slug);
+            if ($v) {
+                $data[$slug] = $v;
+            }
+        }
+        return new WP_REST_Response(['installs' => $data, 'bridge_mem' => defined('FP_REMOTE_BRIDGE_VERSION') ? FP_REMOTE_BRIDGE_VERSION : '?'], 200);
     }
 
     public static function handle_flush_cache(WP_REST_Request $request): WP_REST_Response

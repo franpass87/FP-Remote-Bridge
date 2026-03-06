@@ -280,16 +280,13 @@ class PluginInstaller
         }
 
         // --- Copia nuova versione ---
-        $installed    = false;
-        $install_method = '';
+        $installed = false;
         if (@rename($source_dir, $target_dir)) {
-            $installed      = true;
-            $install_method = 'rename';
+            $installed = true;
         } else {
             // rename cross-device: usa copy
             if (self::copy_dir($source_dir, $target_dir, $wp_filesystem)) {
-                $installed      = true;
-                $install_method = 'copy_dir';
+                $installed = true;
             }
         }
 
@@ -308,20 +305,21 @@ class PluginInstaller
             $wp_filesystem->delete($backup_dir, true);
         }
 
-        // Verifica versione installata leggendo il file dal disco
-        $installed_version = '?';
-        $main_file = self::find_plugin_main_file($target_dir);
-        if ($main_file) {
-            $content = @file_get_contents($main_file, false, null, 0, 2048);
-            if ($content && preg_match('/Version\s*:\s*([^\s\r\n*]+)/i', $content, $vm)) {
-                $installed_version = trim($vm[1]);
+        // Salva nel DB la versione installata sul disco per diagnostica
+        $disk_ver = '?';
+        $mf = self::find_plugin_main_file($target_dir);
+        if ($mf) {
+            $fc = @file_get_contents($mf, false, null, 0, 2048);
+            if ($fc && preg_match('/Version\s*:\s*([^\s\r\n*]+)/i', $fc, $vm)) {
+                $disk_ver = trim($vm[1]);
             }
         }
-
-        // Log diagnostico: scrive su file per debug
-        $log_file = WP_CONTENT_DIR . '/fp-bridge-install.log';
-        $log_line = date('Y-m-d H:i:s') . " slug=$slug method=$install_method target=" . basename($target_dir) . " version_disk=$installed_version\n";
-        @file_put_contents($log_file, $log_line, FILE_APPEND);
+        update_option('fp_bridge_last_install_' . $slug, [
+            'time'       => time(),
+            'target_dir' => basename($target_dir),
+            'disk_ver'   => $disk_ver,
+            'mem_ver'    => defined('FP_REMOTE_BRIDGE_VERSION') ? FP_REMOTE_BRIDGE_VERSION : '?',
+        ], false);
 
         // --- Attivazione sicura ---
         self::activate_plugin_safely($target_dir);
