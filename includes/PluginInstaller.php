@@ -305,22 +305,6 @@ class PluginInstaller
             $wp_filesystem->delete($backup_dir, true);
         }
 
-        // Salva nel DB la versione installata sul disco per diagnostica
-        $disk_ver = '?';
-        $mf = self::find_plugin_main_file($target_dir);
-        if ($mf) {
-            $fc = @file_get_contents($mf, false, null, 0, 2048);
-            if ($fc && preg_match('/Version\s*:\s*([^\s\r\n*]+)/i', $fc, $vm)) {
-                $disk_ver = trim($vm[1]);
-            }
-        }
-        update_option('fp_bridge_last_install_' . $slug, [
-            'time'       => time(),
-            'target_dir' => basename($target_dir),
-            'disk_ver'   => $disk_ver,
-            'mem_ver'    => defined('FP_REMOTE_BRIDGE_VERSION') ? FP_REMOTE_BRIDGE_VERSION : '?',
-        ], false);
-
         // --- Attivazione sicura ---
         self::activate_plugin_safely($target_dir);
 
