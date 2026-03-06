@@ -25,6 +25,12 @@ class SyncEndpoint
      */
     public static function register(): void
     {
+        register_rest_route('fp-remote-bridge/v1', '/reload', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_reload'],
+            'permission_callback' => [self::class, 'check_permission'],
+        ]);
+
         register_rest_route('fp-remote-bridge/v1', '/install-log', [
             'methods'             => 'GET',
             'callback'            => [self::class, 'handle_install_log'],
@@ -77,6 +83,21 @@ class SyncEndpoint
      * Dopo l'installazione fa un secondo ping al Master per aggiornare
      * le versioni mostrate nella UI in tempo reale.
      */
+    public static function handle_reload(WP_REST_Request $request): WP_REST_Response
+    {
+        if (!function_exists('deactivate_plugins') || !function_exists('activate_plugin')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $basename = plugin_basename(FP_REMOTE_BRIDGE_FILE);
+        deactivate_plugins($basename, true);
+        $result = activate_plugin($basename, '', false, true);
+        return new WP_REST_Response([
+            'success'  => !is_wp_error($result),
+            'basename' => $basename,
+            'error'    => is_wp_error($result) ? $result->get_error_message() : null,
+        ], 200);
+    }
+
     public static function handle_install_log(WP_REST_Request $request): WP_REST_Response
     {
         // Legge i dati di installazione salvati nel DB
