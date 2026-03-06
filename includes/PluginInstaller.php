@@ -280,13 +280,16 @@ class PluginInstaller
         }
 
         // --- Copia nuova versione ---
-        $installed = false;
+        $installed    = false;
+        $install_method = '';
         if (@rename($source_dir, $target_dir)) {
-            $installed = true;
+            $installed      = true;
+            $install_method = 'rename';
         } else {
             // rename cross-device: usa copy
             if (self::copy_dir($source_dir, $target_dir, $wp_filesystem)) {
-                $installed = true;
+                $installed      = true;
+                $install_method = 'copy_dir';
             }
         }
 
@@ -304,6 +307,21 @@ class PluginInstaller
         if ($backup_dir && is_dir($backup_dir)) {
             $wp_filesystem->delete($backup_dir, true);
         }
+
+        // Verifica versione installata leggendo il file dal disco
+        $installed_version = '?';
+        $main_file = self::find_plugin_main_file($target_dir);
+        if ($main_file) {
+            $content = @file_get_contents($main_file, false, null, 0, 2048);
+            if ($content && preg_match('/Version\s*:\s*([^\s\r\n*]+)/i', $content, $vm)) {
+                $installed_version = trim($vm[1]);
+            }
+        }
+
+        // Log diagnostico: scrive su file per debug
+        $log_file = WP_CONTENT_DIR . '/fp-bridge-install.log';
+        $log_line = date('Y-m-d H:i:s') . " slug=$slug method=$install_method target=" . basename($target_dir) . " version_disk=$installed_version\n";
+        @file_put_contents($log_file, $log_line, FILE_APPEND);
 
         // --- Attivazione sicura ---
         self::activate_plugin_safely($target_dir);
