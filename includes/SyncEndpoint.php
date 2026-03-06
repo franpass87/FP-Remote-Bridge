@@ -102,16 +102,33 @@ class SyncEndpoint
             }
         }
 
-        $bridge_dir = WP_PLUGIN_DIR . '/' . dirname($bridge_entry);
         $dirs = glob(WP_PLUGIN_DIR . '/*', GLOB_ONLYDIR) ?: [];
         $bridge_dirs = array_filter($dirs, fn($d) => stripos(basename($d), 'fp-remote-bridge') !== false);
 
+        // Legge la versione direttamente dal file su disco (bypassa PHP in memoria)
+        $disk_versions = [];
+        foreach ($bridge_dirs as $dir) {
+            $main = glob($dir . '/fp-remote-bridge.php')[0] ?? null;
+            if ($main) {
+                $content = @file_get_contents($main, false, null, 0, 2048);
+                if ($content && preg_match('/Version\s*:\s*([^\s\r\n*]+)/i', $content, $m)) {
+                    $disk_versions[basename($dir)] = trim($m[1]);
+                }
+            }
+        }
+
+        $opcache_status = null;
+        if (function_exists('opcache_get_status')) {
+            $s = @opcache_get_status(false);
+            $opcache_status = $s['opcache_enabled'] ?? null;
+        }
+
         return new WP_REST_Response([
-            'bridge_version'    => FP_REMOTE_BRIDGE_VERSION,
-            'bridge_entry'      => $bridge_entry,
-            'bridge_dir_exists' => is_dir($bridge_dir),
-            'bridge_dirs'       => array_values(array_map('basename', $bridge_dirs)),
-            'opcache_enabled'   => function_exists('opcache_get_status') ? (bool)@opcache_get_status()['opcache_enabled'] : null,
+            'bridge_version_memory' => FP_REMOTE_BRIDGE_VERSION,  // versione in memoria (PHP)
+            'bridge_version_disk'   => $disk_versions,             // versione sul disco
+            'bridge_entry'          => $bridge_entry,
+            'bridge_dirs'           => array_values(array_map('basename', $bridge_dirs)),
+            'opcache_enabled'       => $opcache_status,
         ], 200);
     }
 
