@@ -119,39 +119,24 @@ class MasterSync
             return ['ok' => false, 'error' => 'URL Master non valido'];
         }
 
-        // client_id e secret PRIMA (essenziali) - installed_plugins può essere lunghissimo
         $client_id = self::get_client_identifier();
-        $args_query = [
-            'secret' => $secret,
-            'client_id' => $client_id,
-            '_t' => time(), // cache-busting: evita risposta in cache
-        ];
         $installed_slugs = self::get_installed_plugin_slugs();
-        if (!empty($installed_slugs)) {
-            // Costruisce la stringa rispettando il limite senza troncare a metà uno slug
-            $chunks      = [];
-            $total_len   = 0;
-            $max_len     = 1500;
-            foreach (array_slice($installed_slugs, 0, 80) as $slug_entry) {
-                $piece = empty($chunks) ? $slug_entry : ',' . $slug_entry;
-                if ($total_len + strlen($piece) > $max_len) {
-                    break;
-                }
-                $chunks[]   = $slug_entry;
-                $total_len += strlen($piece);
-            }
-            if (!empty($chunks)) {
-                $args_query['installed_plugins'] = implode(',', $chunks);
-            }
-        }
-        $endpoint = add_query_arg($args_query, $endpoint);
 
-        $response = wp_remote_get($endpoint, [
+        // Usa POST per inviare installed_plugins nel body (nessun limite di lunghezza URL)
+        $endpoint = add_query_arg(['_t' => time()], $endpoint); // cache-busting
+
+        $response = wp_remote_post($endpoint, [
             'timeout' => 30,
             'headers' => [
                 'X-FP-Client-Secret' => $secret,
                 'X-FP-Client-ID'     => $client_id,
                 'X-FP-Site-URL'      => site_url(),
+                'Content-Type'       => 'application/x-www-form-urlencoded',
+            ],
+            'body' => [
+                'secret'            => $secret,
+                'client_id'         => $client_id,
+                'installed_plugins' => implode(',', $installed_slugs),
             ],
         ]);
 
