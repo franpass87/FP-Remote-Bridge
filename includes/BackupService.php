@@ -40,6 +40,9 @@ class BackupService
             if (!wp_mkdir_p($temp_dir)) {
                 return ['error' => __('Impossibile creare la cartella temporanea.', 'fp-remote-bridge')];
             }
+            // Protegge la cartella da accesso diretto via browser
+            file_put_contents($temp_dir . '/.htaccess', "Deny from all\n");
+            file_put_contents($temp_dir . '/index.php', '<?php // Silence is golden.');
         }
 
         $timestamp = gmdate('Y-m-d-His');
