@@ -54,6 +54,12 @@ class SyncEndpoint
             'callback'            => [self::class, 'handle_request'],
             'permission_callback' => [self::class, 'permission_check'],
         ]);
+
+        register_rest_route('fp-remote-bridge/v1', '/plugin-versions', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_plugin_versions'],
+            'permission_callback' => [self::class, 'permission_check'],
+        ]);
     }
 
     /**
@@ -169,6 +175,29 @@ class SyncEndpoint
             'bridge_entry'          => $bridge_entry,
             'bridge_dirs'           => array_values(array_map('basename', $bridge_dirs)),
             'opcache_enabled'       => $opcache_status,
+        ], 200);
+    }
+
+    /**
+     * Restituisce tutti i plugin installati con versioni.
+     * Chiamato dal Master per aggiornare i dati cliente in tempo reale.
+     */
+    public static function handle_plugin_versions(WP_REST_Request $request): WP_REST_Response
+    {
+        $slugs = MasterSync::get_installed_plugin_slugs();
+        $versions = [];
+        foreach ($slugs as $entry) {
+            if (strpos($entry, ':') !== false) {
+                [$slug, $version] = explode(':', $entry, 2);
+                $versions[$slug] = $version;
+            } else {
+                $versions[$entry] = '';
+            }
+        }
+        return new WP_REST_Response([
+            'success'  => true,
+            'plugins'  => $versions,
+            'site_url' => site_url(),
         ], 200);
     }
 
