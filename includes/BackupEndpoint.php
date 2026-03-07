@@ -62,7 +62,8 @@ class BackupEndpoint
     {
         $result = BackupSync::create_and_upload();
 
-        if (!empty($result['path'])) {
+        // Elimina il file temporaneo solo se l'upload è riuscito.
+        if (!empty($result['path']) && !empty($result['success'])) {
             BackupService::cleanup_temp();
         }
 

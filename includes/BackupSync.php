@@ -89,7 +89,9 @@ class BackupSync
     public static function run_backup(): void
     {
         $result = self::create_and_upload();
-        if (!empty($result['path'])) {
+        // Elimina il file temporaneo solo se l'upload è riuscito.
+        // In caso di errore il file rimane per un eventuale retry manuale.
+        if (!empty($result['path']) && !empty($result['success'])) {
             BackupService::cleanup_temp();
         }
     }
