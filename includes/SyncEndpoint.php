@@ -28,25 +28,25 @@ class SyncEndpoint
         register_rest_route('fp-remote-bridge/v1', '/reload', [
             'methods'             => 'POST',
             'callback'            => [self::class, 'handle_reload'],
-            'permission_callback' => [self::class, 'check_permission'],
+            'permission_callback' => [self::class, 'permission_check'],
         ]);
 
         register_rest_route('fp-remote-bridge/v1', '/install-log', [
             'methods'             => 'GET',
             'callback'            => [self::class, 'handle_install_log'],
-            'permission_callback' => [self::class, 'check_permission'],
+            'permission_callback' => [self::class, 'permission_check'],
         ]);
 
         register_rest_route('fp-remote-bridge/v1', '/flush-cache', [
             'methods'             => 'POST',
             'callback'            => [self::class, 'handle_flush_cache'],
-            'permission_callback' => [self::class, 'check_permission'],
+            'permission_callback' => [self::class, 'permission_check'],
         ]);
 
         register_rest_route('fp-remote-bridge/v1', '/status', [
             'methods'             => 'GET',
             'callback'            => [self::class, 'handle_status'],
-            'permission_callback' => [self::class, 'check_permission'],
+            'permission_callback' => [self::class, 'permission_check'],
         ]);
 
         register_rest_route('fp-remote-bridge/v1', '/trigger-sync', [
