@@ -8,7 +8,7 @@ Plugin Name: FP Remote Bridge
  * Description: Connettore per siti remoti che ricevono pubblicazioni e dati SEO da FP Publisher e altri prodotti FP.
  * Version: 1.3.6
  * Author: Francesco Passeri
- * Author URI: https://www.francescopasseri.com
+ * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: fp-remote-bridge
