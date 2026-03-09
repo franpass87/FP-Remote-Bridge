@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.3.7] - 2026-03-09
+### Changed
+- Docs README
+
 ## [1.3.6] - 2026-03-07
 ### Fixed
 - Protezione cartella backup temp tramite `.htaccess`
