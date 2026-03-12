@@ -160,8 +160,9 @@ class MasterSync
     }
 
     /**
-     * Esegue il polling verso il Master e, se ci sono aggiornamenti, triggera FP Updater o PluginInstaller.
-     * Usa un transient lock per evitare esecuzioni concorrenti (cron ogni minuto + traffico HTTP).
+     * Esegue il polling verso il Master (solo registro/ping).
+     * NON installa automaticamente: gli aggiornamenti avvengono solo via trigger-sync
+     * (push dal Master) o "Sincronizza ora" manuale.
      */
     public static function run_sync(): void
     {
@@ -180,44 +181,9 @@ class MasterSync
 
     private static function do_sync(): void
     {
-        $result = self::fetch_master_status();
-        if (!$result['ok']) {
-            return;
-        }
-
-        $data = $result['data'];
-        if (empty($data['updates_available'])) {
-            return;
-        }
-
-        // I client installano SOLO se il Master ha autorizzato il deploy (pulsante "Distribuisci ai client")
-        if (empty($data['deploy_authorized'])) {
-            return;
-        }
-
-        $plugins = $data['plugins'] ?? [];
-
-        foreach ($plugins as $plugin) {
-            $has_source = !empty($plugin['github_repo']) || !empty($plugin['zip_url'] ?? '');
-
-            // Se il plugin ha una sorgente diretta (github_repo o zip_url), installa/aggiorna
-            // direttamente tramite PluginInstaller — funziona sia per nuove installazioni
-            // che per aggiornamenti di plugin già presenti, indipendentemente da FP Updater.
-            if ($has_source) {
-                PluginInstaller::install_from_master($plugin);
-                continue;
-            }
-
-            // Per plugin senza sorgente diretta (gestiti solo da FP Updater locale), usa l'Updater
-            if (class_exists('FP\GitUpdater\Updater')) {
-                $plugin_id = $plugin['id'] ?? $plugin['slug'] ?? '';
-                if (!empty($plugin_id)) {
-                    $updater = \FP\GitUpdater\Updater::get_instance();
-                    $updater->check_for_updates();
-                    $updater->run_update_by_id($plugin_id);
-                }
-            }
-        }
+        // Solo ping al Master: registra il client e le versioni installate.
+        // Nessuna installazione automatica — solo trigger-sync o Sincronizza ora.
+        self::fetch_master_status();
     }
 
     /**
