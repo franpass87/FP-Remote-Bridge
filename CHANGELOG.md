@@ -2,6 +2,11 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.3.9] - 2026-03-19
+### Added
+- Header `X-FP-Site-Name` inviato al Master (nome sito da Impostazioni > Generale)
+- Campo `site_name` nella risposta endpoint `/plugin-versions`
+
 ## [1.3.8] - 2026-03-12
 ### Fixed
 - Il cron non installa più automaticamente: aggiornamenti solo via trigger-sync (push dal Master) o "Sincronizza ora" manuale

@@ -125,12 +125,14 @@ class MasterSync
         // Usa POST per inviare installed_plugins nel body (nessun limite di lunghezza URL)
         $endpoint = add_query_arg(['_t' => time()], $endpoint); // cache-busting
 
+        $site_name = get_bloginfo('name', 'display');
         $response = wp_remote_post($endpoint, [
             'timeout' => 30,
             'headers' => [
                 'X-FP-Client-Secret' => $secret,
                 'X-FP-Client-ID'     => $client_id,
                 'X-FP-Site-URL'      => site_url(),
+                'X-FP-Site-Name'     => $site_name ?: parse_url(site_url(), PHP_URL_HOST) ?: $client_id,
                 'Content-Type'       => 'application/x-www-form-urlencoded',
             ],
             'body' => [

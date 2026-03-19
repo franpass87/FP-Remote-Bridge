@@ -195,9 +195,10 @@ class SyncEndpoint
             }
         }
         return new WP_REST_Response([
-            'success'  => true,
-            'plugins'  => $versions,
-            'site_url' => site_url(),
+            'success'   => true,
+            'plugins'   => $versions,
+            'site_url'  => site_url(),
+            'site_name' => get_bloginfo('name', 'display') ?: parse_url(site_url(), PHP_URL_HOST) ?: '',
         ], 200);
     }
 
