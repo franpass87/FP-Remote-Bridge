@@ -32,6 +32,8 @@ class ComposerStaticInite9015d6c5f32f144901b5c86503d3597
         'FP\\RemoteBridge\\RestEndpoint' => __DIR__ . '/../..' . '/includes/RestEndpoint.php',
         'FP\\RemoteBridge\\SeoRest' => __DIR__ . '/../..' . '/includes/SeoRest.php',
         'FP\\RemoteBridge\\Settings' => __DIR__ . '/../..' . '/includes/Settings.php',
+        'FP\\RemoteBridge\\SyncEndpoint' => __DIR__ . '/../..' . '/includes/SyncEndpoint.php',
+        'FP\\RemoteBridge\\WpmlEndpoint' => __DIR__ . '/../..' . '/includes/WpmlEndpoint.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

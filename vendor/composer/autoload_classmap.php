@@ -17,4 +17,6 @@ return array(
     'FP\\RemoteBridge\\RestEndpoint' => $baseDir . '/includes/RestEndpoint.php',
     'FP\\RemoteBridge\\SeoRest' => $baseDir . '/includes/SeoRest.php',
     'FP\\RemoteBridge\\Settings' => $baseDir . '/includes/Settings.php',
+    'FP\\RemoteBridge\\SyncEndpoint' => $baseDir . '/includes/SyncEndpoint.php',
+    'FP\\RemoteBridge\\WpmlEndpoint' => $baseDir . '/includes/WpmlEndpoint.php',
 );

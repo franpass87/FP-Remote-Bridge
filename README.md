@@ -64,6 +64,11 @@ FP-Remote-Bridge/
 | `/wp-json/fp-bridge/v1/flush-cache` | POST | App Password | Invalida opcache |
 | `/wp-json/fp-bridge/v1/install-log` | GET | App Password | Log ultima installazione |
 
+### FP Publisher (integrazione multilingue)
+| Endpoint | Metodo | Auth | Descrizione |
+|----------|--------|------|-------------|
+| `/wp-json/fp-publisher/v1/wpml-link-translation` | POST | App Password | Collega una traduzione WPML all'articolo originale. Body: `original_id`, `translation_id`, `language_code`, `post_type` (opzionale). |
+
 ### Autenticazione
 Tutti gli endpoint usano **WordPress Application Passwords**. Il Master configura le credenziali nel pannello FP Updater.
 
