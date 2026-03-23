@@ -25,6 +25,21 @@ class Settings
         add_action('admin_init', [self::class, 'register_settings']);
         add_action('admin_init', [self::class, 'handle_manual_sync']);
         add_action('admin_init', [self::class, 'handle_manual_backup']);
+        add_action('admin_enqueue_scripts', [self::class, 'enqueue_assets']);
+    }
+
+    public static function enqueue_assets(string $hook): void
+    {
+        $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
+        if ($page !== 'fp-remote-bridge') {
+            return;
+        }
+        wp_enqueue_style(
+            'fp-remote-bridge-admin',
+            plugin_dir_url(FP_REMOTE_BRIDGE_FILE) . 'assets/css/admin.css',
+            [],
+            FP_REMOTE_BRIDGE_VERSION
+        );
     }
 
     public static function add_menu(): void
@@ -161,13 +176,14 @@ class Settings
         $backup_client_id = get_option(BackupSync::OPTION_BACKUP_CLIENT_ID, '');
         $include_uploads = get_option(BackupService::OPTION_INCLUDE_UPLOADS, true);
         ?>
-        <div class="wrap fp-bridge-wrap">
-            <div class="fp-bridge-header">
-                <h1 class="fp-bridge-title">
-                    <span class="dashicons dashicons-admin-links"></span>
-                    <?php echo esc_html(get_admin_page_title()); ?>
-                </h1>
-                <p class="fp-bridge-subtitle"><?php esc_html_e('Collega questo sito al Master per ricevere aggiornamenti e inviare backup.', 'fp-remote-bridge'); ?></p>
+        <div class="wrap fp-bridge-wrap fpbridge-admin-page">
+            <h1 class="screen-reader-text"><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <div class="fpbridge-page-header">
+                <div class="fpbridge-page-header-content">
+                    <h2 class="fpbridge-page-header-title" aria-hidden="true"><span class="dashicons dashicons-admin-links"></span> <?php echo esc_html(get_admin_page_title()); ?></h2>
+                    <p><?php esc_html_e('Collega questo sito al Master per ricevere aggiornamenti e inviare backup.', 'fp-remote-bridge'); ?></p>
+                </div>
+                <span class="fpbridge-page-header-badge">v<?php echo esc_html(FP_REMOTE_BRIDGE_VERSION); ?></span>
             </div>
 
             <?php if ($sync_result === 'ok') : ?>
@@ -390,25 +406,6 @@ class Settings
                 </div>
             <?php endif; ?>
         </div>
-        <style>
-            .fp-bridge-wrap { max-width: 720px; }
-            .fp-bridge-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #dcdcde; }
-            .fp-bridge-title { display: flex; align-items: center; gap: 10px; font-size: 23px; margin: 0 0 6px 0; }
-            .fp-bridge-title .dashicons { color: #2271b1; }
-            .fp-bridge-subtitle { margin: 0; color: #50575e; font-size: 14px; }
-            .fp-bridge-card { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-            .fp-bridge-card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px 0; font-size: 16px; font-weight: 600; }
-            .fp-bridge-card-title .dashicons { color: #2271b1; font-size: 20px; width: 20px; height: 20px; }
-            .fp-bridge-card-desc { margin: 0 0 16px 0; color: #50575e; font-size: 13px; line-height: 1.5; }
-            .fp-bridge-card .form-table { margin: 0; }
-            .fp-bridge-input-group { display: flex; gap: 8px; align-items: center; max-width: 100%; }
-            .fp-bridge-input-group .fp-bridge-url-input { flex: 1; font-family: Consolas, Monaco, monospace; font-size: 13px; }
-            .fp-bridge-btn-copy.fp-bridge-copied .fp-bridge-copy-text { color: #00a32a; }
-            .fp-bridge-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
-            .fp-bridge-btn-action { display: inline-flex; align-items: center; gap: 6px; }
-            .fp-bridge-btn-action .dashicons { font-size: 18px; width: 18px; height: 18px; }
-            .fp-bridge-notice .dashicons { vertical-align: middle; margin-right: 4px; }
-        </style>
         <script>
             (function() {
                 var btn = document.querySelector('.fp-bridge-btn-copy');

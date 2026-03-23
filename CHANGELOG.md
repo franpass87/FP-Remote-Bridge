@@ -2,6 +2,14 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.3.11] - 2026-03-23
+### Changed
+- Grafica unificata pagina impostazioni (header FP, h1 screen-reader-text)
+- CSS inline spostato in `assets/css/admin.css`
+
+### Added
+- Enqueue `admin.css` sulla pagina impostazioni
+
 ## [1.3.10] - 2026-03-21
 ### Added
 - Endpoint `POST /wp-json/fp-publisher/v1/wpml-link-translation` per collegare traduzioni WPML all'originale. Usato da FP-Publisher dopo la creazione di un post traduzione per associarlo all'articolo originale tramite `wpml_set_element_language_details`. Parametri: `original_id`, `translation_id`, `language_code`, `post_type` (opzionale).

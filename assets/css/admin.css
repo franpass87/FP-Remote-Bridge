@@ -1,0 +1,63 @@
+/**
+ * FP Remote Bridge - Admin styles
+ * Design system FP
+ */
+
+:root {
+	--fpdms-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+body[class*="fp-remote-bridge"] #wpbody-content > .wrap.fpbridge-admin-page {
+	margin-top: 12px;
+}
+
+.fpbridge-page-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 28px 32px;
+	background: var(--fpdms-gradient-primary);
+	border-radius: 16px;
+	margin-bottom: 24px;
+}
+
+.fpbridge-page-header-content .fpbridge-page-header-title {
+	color: white !important;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+	font-size: 26px;
+	font-weight: 700;
+	margin: 0 0 8px 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.fpbridge-page-header-content p {
+	color: rgba(255,255,255,0.88) !important;
+	margin: 0;
+	font-size: 14px;
+}
+
+.fpbridge-page-header-badge {
+	background: rgba(255,255,255,0.2);
+	color: white;
+	padding: 6px 14px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+/* Mantieni stili esistenti fp-bridge-* per retrocompatibilità */
+.fp-bridge-wrap { max-width: 720px; }
+.fp-bridge-card { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.fp-bridge-card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px 0; font-size: 16px; font-weight: 600; }
+.fp-bridge-card-title .dashicons { color: #2271b1; font-size: 20px; width: 20px; height: 20px; }
+.fp-bridge-card-desc { margin: 0 0 16px 0; color: #50575e; font-size: 13px; line-height: 1.5; }
+.fp-bridge-card .form-table { margin: 0; }
+.fp-bridge-input-group { display: flex; gap: 8px; align-items: center; max-width: 100%; }
+.fp-bridge-input-group .fp-bridge-url-input { flex: 1; font-family: Consolas, Monaco, monospace; font-size: 13px; }
+.fp-bridge-btn-copy.fp-bridge-copied .fp-bridge-copy-text { color: #00a32a; }
+.fp-bridge-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.fp-bridge-btn-action { display: inline-flex; align-items: center; gap: 6px; }
+.fp-bridge-btn-action .dashicons { font-size: 18px; width: 18px; height: 18px; }
+.fp-bridge-notice .dashicons { vertical-align: middle; margin-right: 4px; }
