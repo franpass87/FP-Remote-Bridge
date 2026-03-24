@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.4.1] - 2026-03-24
+### Fixed
+- Endpoint `marketing-metrics`: normalizzata la lettura delle opzioni CTA/Bio evitando doppie chiamate a `get_option()` e migliorando la robustezza del payload.
+
 ## [1.4.0] - 2026-03-24
 ### Added
 - Nuovo endpoint autenticato `GET /wp-json/fp-remote-bridge/v1/marketing-metrics` per esporre metriche marketing aggregate verso FP DMS.

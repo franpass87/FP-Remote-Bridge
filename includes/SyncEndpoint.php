@@ -219,9 +219,13 @@ class SyncEndpoint
         $ctaInstalled = self::isPluginActiveBySlug('fp-cta-bar', $activePlugins, $siteWideActive);
         $bioInstalled = self::isPluginActiveBySlug('fp-bio-standalone', $activePlugins, $siteWideActive);
 
-        $ctaStats = is_array(get_option('fp_cta_bar_click_stats', [])) ? get_option('fp_cta_bar_click_stats', []) : [];
-        $bioByDay = is_array(get_option('fp_bio_click_counts_by_day', [])) ? get_option('fp_bio_click_counts_by_day', []) : [];
-        $bioLegacy = is_array(get_option('fp_bio_click_counts', [])) ? get_option('fp_bio_click_counts', []) : [];
+        $ctaStatsRaw = get_option('fp_cta_bar_click_stats', []);
+        $bioByDayRaw = get_option('fp_bio_click_counts_by_day', []);
+        $bioLegacyRaw = get_option('fp_bio_click_counts', []);
+
+        $ctaStats = is_array($ctaStatsRaw) ? $ctaStatsRaw : [];
+        $bioByDay = is_array($bioByDayRaw) ? $bioByDayRaw : [];
+        $bioLegacy = is_array($bioLegacyRaw) ? $bioLegacyRaw : [];
 
         $ctaByDayRaw = is_array($ctaStats['by_day'] ?? null) ? $ctaStats['by_day'] : [];
         $ctaByDay = [];

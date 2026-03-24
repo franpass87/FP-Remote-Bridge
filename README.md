@@ -2,7 +2,7 @@
 
 Connettore per siti remoti che ricevono pubblicazioni, dati SEO e aggiornamenti plugin dall'ecosistema FP (FP Publisher, FP Updater).
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
+[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
 
 ---
