@@ -60,6 +60,12 @@ class SyncEndpoint
             'callback'            => [self::class, 'handle_plugin_versions'],
             'permission_callback' => [self::class, 'permission_check'],
         ]);
+
+        register_rest_route('fp-remote-bridge/v1', '/marketing-metrics', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_marketing_metrics'],
+            'permission_callback' => [self::class, 'permission_check'],
+        ]);
     }
 
     /**
@@ -200,6 +206,116 @@ class SyncEndpoint
             'site_url'  => site_url(),
             'site_name' => get_bloginfo('name', 'display') ?: parse_url(site_url(), PHP_URL_HOST) ?: '',
         ], 200);
+    }
+
+    /**
+     * Espone metriche marketing aggregate da plugin FP locali (CTA Bar/Bio Standalone).
+     */
+    public static function handle_marketing_metrics(WP_REST_Request $request): WP_REST_Response
+    {
+        $activePlugins = (array) get_option('active_plugins', []);
+        $siteWideActive = (array) get_site_option('active_sitewide_plugins', []);
+
+        $ctaInstalled = self::isPluginActiveBySlug('fp-cta-bar', $activePlugins, $siteWideActive);
+        $bioInstalled = self::isPluginActiveBySlug('fp-bio-standalone', $activePlugins, $siteWideActive);
+
+        $ctaStats = is_array(get_option('fp_cta_bar_click_stats', [])) ? get_option('fp_cta_bar_click_stats', []) : [];
+        $bioByDay = is_array(get_option('fp_bio_click_counts_by_day', [])) ? get_option('fp_bio_click_counts_by_day', []) : [];
+        $bioLegacy = is_array(get_option('fp_bio_click_counts', [])) ? get_option('fp_bio_click_counts', []) : [];
+
+        $ctaByDayRaw = is_array($ctaStats['by_day'] ?? null) ? $ctaStats['by_day'] : [];
+        $ctaByDay = [];
+        foreach ($ctaByDayRaw as $date => $value) {
+            $dateString = self::normalizeDateKey((string) $date);
+            if ($dateString === '') {
+                continue;
+            }
+            $ctaByDay[$dateString] = ($ctaByDay[$dateString] ?? 0) + (int) $value;
+        }
+
+        $bioDaily = [];
+        foreach ($bioByDay as $date => $value) {
+            $dateString = self::normalizeDateKey((string) $date);
+            if ($dateString === '') {
+                continue;
+            }
+            $bioDaily[$dateString] = ($bioDaily[$dateString] ?? 0) + (int) $value;
+        }
+
+        $allDates = array_unique(array_merge(array_keys($ctaByDay), array_keys($bioDaily)));
+        sort($allDates);
+
+        $daily = [];
+        foreach ($allDates as $date) {
+            $ctaClicks = (int) ($ctaByDay[$date] ?? 0);
+            $bioClicks = (int) ($bioDaily[$date] ?? 0);
+            $daily[] = [
+                'date' => $date,
+                'cta_clicks' => $ctaClicks,
+                'bio_clicks' => $bioClicks,
+                'bridge_clicks' => $ctaClicks + $bioClicks,
+            ];
+        }
+
+        $ctaTotal = (int) ($ctaStats['total_clicks'] ?? array_sum($ctaByDay));
+        $bioTotal = $bioDaily !== [] ? (int) array_sum($bioDaily) : (int) array_sum($bioLegacy);
+        $updatedAt = (string) get_option('fp_bio_click_updated_at', '');
+        if ($updatedAt === '') {
+            $updatedAt = (string) ($ctaStats['updated_at'] ?? '');
+        }
+        if ($updatedAt === '') {
+            $updatedAt = current_time('mysql');
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'plugins' => [
+                'cta_bar' => $ctaInstalled,
+                'bio_standalone' => $bioInstalled,
+            ],
+            'daily' => $daily,
+            'totals' => [
+                'cta_clicks' => $ctaTotal,
+                'bio_clicks' => $bioTotal,
+                'bridge_clicks' => $ctaTotal + $bioTotal,
+            ],
+            'updated_at' => $updatedAt,
+        ], 200);
+    }
+
+    /**
+     * @param array<int, string> $activePlugins
+     * @param array<string, mixed> $siteWideActive
+     */
+    private static function isPluginActiveBySlug(string $slug, array $activePlugins, array $siteWideActive): bool
+    {
+        foreach ($activePlugins as $pluginFile) {
+            if (is_string($pluginFile) && stripos($pluginFile, $slug . '/') !== false) {
+                return true;
+            }
+        }
+
+        foreach (array_keys($siteWideActive) as $pluginFile) {
+            if (is_string($pluginFile) && stripos($pluginFile, $slug . '/') !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function normalizeDateKey(string $date): string
+    {
+        if ($date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return gmdate('Y-m-d', $timestamp);
     }
 
     public static function handle_request(WP_REST_Request $request): WP_REST_Response

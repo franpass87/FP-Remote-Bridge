@@ -2,6 +2,13 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.4.0] - 2026-03-24
+### Added
+- Nuovo endpoint autenticato `GET /wp-json/fp-remote-bridge/v1/marketing-metrics` per esporre metriche marketing aggregate verso FP DMS.
+
+### Changed
+- Payload bridge esteso con `plugins`, `daily`, `totals` e `updated_at` per supportare KPI CTA/Bio con granularita giornaliera.
+
 ## [1.3.11] - 2026-03-23
 ### Changed
 - Grafica unificata pagina impostazioni (header FP, h1 screen-reader-text)
