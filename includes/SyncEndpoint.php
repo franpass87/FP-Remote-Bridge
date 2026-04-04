@@ -308,10 +308,21 @@ class SyncEndpoint
         return false;
     }
 
+    /**
+     * Normalizza la chiave giorno per merge CTA/Bio e confronto col periodo lato DMS.
+     *
+     * Le opzioni FP Bio e FP CTA Bar usano `Y-m-d` (UTC); su quel formato **non** usare strtotime,
+     * altrimenti col fuso del server la data può scivolare di un giorno e i clic risultano fuori periodo (0 nel report).
+     */
     private static function normalizeDateKey(string $date): string
     {
+        $date = trim($date);
         if ($date === '') {
             return '';
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1) {
+            return $date;
         }
 
         $timestamp = strtotime($date);

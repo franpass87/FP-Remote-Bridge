@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.4.2] - 2026-04-05
+### Fixed
+- **marketing-metrics**: `normalizeDateKey()` non rielabora più le chiavi già in formato `Y-m-d` (Bio/CTA). Con fuso orario del server divers da UTC, `strtotime`+`gmdate` poteva spostare il giorno di un’unità e i clic risultavano **fuori periodo** nel report DMS (spesso 0).
+
 ## [1.4.1] - 2026-03-24
 ### Fixed
 - Endpoint `marketing-metrics`: normalizzata la lettura delle opzioni CTA/Bio evitando doppie chiamate a `get_option()` e migliorando la robustezza del payload.
