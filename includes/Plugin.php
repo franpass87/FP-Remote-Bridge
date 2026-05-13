@@ -43,6 +43,7 @@ class Plugin
         add_action('rest_api_init', [Diagnostics\SiteIntelligenceEndpoint::class, 'register']);
         Diagnostics\ClientErrorIngest::register();
         Diagnostics\FrontendErrorCollector::register();
+        Admin\DiagnosticsDashboard::init();
         Settings::init();
         MasterSync::init();
         BackupSync::init();

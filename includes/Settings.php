@@ -363,7 +363,12 @@ class Settings
                         <span class="dashicons dashicons-chart-area"></span>
                         <?php esc_html_e('Diagnostica remota (Cursor)', 'fp-remote-bridge'); ?>
                     </h2>
-                    <p class="fp-bridge-card-desc"><?php esc_html_e('Espone uno snapshot read-only del sito verso Cursor tramite MCP e raccoglie errori JavaScript e console dal browser.', 'fp-remote-bridge'); ?></p>
+                    <p class="fp-bridge-card-desc">
+                        <?php esc_html_e('Espone uno snapshot read-only del sito verso Cursor tramite MCP e raccoglie errori JavaScript e console dal browser.', 'fp-remote-bridge'); ?>
+                        <a href="<?php echo esc_url(admin_url('options-general.php?page=' . Admin\DiagnosticsDashboard::PAGE_SLUG)); ?>">
+                            <?php esc_html_e('Apri la panoramica diagnostica', 'fp-remote-bridge'); ?>
+                        </a>
+                    </p>
 
                 <table class="form-table" role="presentation">
                     <tr>

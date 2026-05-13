@@ -2,6 +2,11 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.6.0] - 2026-05-13
+### Added
+- Pagina admin **Impostazioni → FP Bridge Diagnostica** con KPI, errori JS/console, segnali SEO, performance FP e log PHP.
+- Aggiornamento AJAX della panoramica diagnostica senza ricaricare la pagina.
+
 ## [1.5.0] - 2026-05-13
 ### Added
 - Endpoint read-only `GET /wp-json/fp-remote-bridge/v1/site-intelligence` per diagnostica remota (salute sito, log PHP, performance, SEO, errori browser).

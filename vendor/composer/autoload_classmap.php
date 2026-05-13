@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'FP\\RemoteBridge\\Admin\\DiagnosticsDashboard' => $baseDir . '/includes/Admin/DiagnosticsDashboard.php',
     'FP\\RemoteBridge\\BackupEndpoint' => $baseDir . '/includes/BackupEndpoint.php',
     'FP\\RemoteBridge\\BackupService' => $baseDir . '/includes/BackupService.php',
     'FP\\RemoteBridge\\BackupSync' => $baseDir . '/includes/BackupSync.php',

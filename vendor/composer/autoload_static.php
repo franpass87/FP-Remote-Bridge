@@ -22,6 +22,7 @@ class ComposerStaticInite9015d6c5f32f144901b5c86503d3597
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'FP\\RemoteBridge\\Admin\\DiagnosticsDashboard' => __DIR__ . '/../..' . '/includes/Admin/DiagnosticsDashboard.php',
         'FP\\RemoteBridge\\BackupEndpoint' => __DIR__ . '/../..' . '/includes/BackupEndpoint.php',
         'FP\\RemoteBridge\\BackupService' => __DIR__ . '/../..' . '/includes/BackupService.php',
         'FP\\RemoteBridge\\BackupSync' => __DIR__ . '/../..' . '/includes/BackupSync.php',
