@@ -18,6 +18,8 @@ return array(
     'FP\\RemoteBridge\\Diagnostics\\FrontendErrorCollector' => $baseDir . '/includes/Diagnostics/FrontendErrorCollector.php',
     'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceEndpoint' => $baseDir . '/includes/Diagnostics/SiteIntelligenceEndpoint.php',
     'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceService' => $baseDir . '/includes/Diagnostics/SiteIntelligenceService.php',
+    'FP\\RemoteBridge\\Diagnostics\\SiteReportsEndpoint' => $baseDir . '/includes/Diagnostics/SiteReportsEndpoint.php',
+    'FP\\RemoteBridge\\Diagnostics\\SiteReportsService' => $baseDir . '/includes/Diagnostics/SiteReportsService.php',
     'FP\\RemoteBridge\\MasterSync' => $baseDir . '/includes/MasterSync.php',
     'FP\\RemoteBridge\\Plugin' => $baseDir . '/includes/Plugin.php',
     'FP\\RemoteBridge\\PluginInstaller' => $baseDir . '/includes/PluginInstaller.php',

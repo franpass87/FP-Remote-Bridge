@@ -33,6 +33,8 @@ class ComposerStaticInite9015d6c5f32f144901b5c86503d3597
         'FP\\RemoteBridge\\Diagnostics\\FrontendErrorCollector' => __DIR__ . '/../..' . '/includes/Diagnostics/FrontendErrorCollector.php',
         'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceEndpoint' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteIntelligenceEndpoint.php',
         'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceService' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteIntelligenceService.php',
+        'FP\\RemoteBridge\\Diagnostics\\SiteReportsEndpoint' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteReportsEndpoint.php',
+        'FP\\RemoteBridge\\Diagnostics\\SiteReportsService' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteReportsService.php',
         'FP\\RemoteBridge\\MasterSync' => __DIR__ . '/../..' . '/includes/MasterSync.php',
         'FP\\RemoteBridge\\Plugin' => __DIR__ . '/../..' . '/includes/Plugin.php',
         'FP\\RemoteBridge\\PluginInstaller' => __DIR__ . '/../..' . '/includes/PluginInstaller.php',

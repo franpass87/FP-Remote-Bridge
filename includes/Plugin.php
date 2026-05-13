@@ -41,6 +41,7 @@ class Plugin
         add_action('rest_api_init', [BackupEndpoint::class, 'register']);
         add_action('rest_api_init', [SyncEndpoint::class, 'register']);
         add_action('rest_api_init', [Diagnostics\SiteIntelligenceEndpoint::class, 'register']);
+        add_action('rest_api_init', [Diagnostics\SiteReportsEndpoint::class, 'register']);
         Diagnostics\ClientErrorIngest::register();
         Diagnostics\FrontendErrorCollector::register();
         Admin\DiagnosticsDashboard::init();

@@ -188,6 +188,7 @@ class Settings
         $diag_client_errors = get_option(Diagnostics\DiagnosticsSettings::OPTION_CLIENT_ERRORS, true);
         $diag_capture_console = get_option(Diagnostics\DiagnosticsSettings::OPTION_CAPTURE_CONSOLE, true);
         $site_intelligence_url = rest_url('fp-remote-bridge/v1/site-intelligence');
+        $site_reports_url = rest_url('fp-remote-bridge/v1/site-reports');
         ?>
         <div class="wrap fp-bridge-wrap fpbridge-admin-page">
             <h1 class="screen-reader-text"><?php echo esc_html(get_admin_page_title()); ?></h1>
@@ -406,6 +407,10 @@ class Settings
                             </div>
                             <p class="description">
                                 <?php esc_html_e('Autenticazione: header X-FP-Client-Secret con lo stesso secret Master configurato sopra.', 'fp-remote-bridge'); ?>
+                            </p>
+                            <p class="description">
+                                <?php esc_html_e('Report mirati SEO/WPML:', 'fp-remote-bridge'); ?>
+                                <code><?php echo esc_html($site_reports_url); ?></code>
                             </p>
                         </td>
                     </tr>

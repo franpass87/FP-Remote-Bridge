@@ -2,6 +2,11 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.7.0] - 2026-05-13
+### Added
+- Endpoint read-only `GET /wp-json/fp-remote-bridge/v1/site-reports` con report mirati `seo_gaps` e `wpml_gaps` (meta SEO mancanti e contenuti senza traduzione inglese WPML).
+- Tool MCP `fp_get_site_reports` per leggere i report da Cursor.
+
 ## [1.6.1] - 2026-05-13
 ### Fixed
 - `site-intelligence` / diagnostica performance: segnali FP Performance letti dalle opzioni correnti (`fp_ps_page_cache_settings`, `fp_ps_assets`, `fp_ps_lazy_load`, `fp_ps_external_cache`, ecc.) con fallback legacy, invece dei flag obsoleti sempre falsi.

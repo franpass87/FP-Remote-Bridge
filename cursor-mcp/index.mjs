@@ -95,6 +95,43 @@ async function fetchSiteIntelligence(site, sections, clientErrorsLimit) {
   return payload;
 }
 
+function buildReportsEndpoint(siteUrl, reports, limit) {
+  const base = siteUrl.replace(/\/$/, '');
+  const endpoint = new URL(`${base}/wp-json/fp-remote-bridge/v1/site-reports`);
+  if (reports.length > 0) {
+    endpoint.searchParams.set('reports', reports.join(','));
+  }
+  if (limit > 0) {
+    endpoint.searchParams.set('limit', String(limit));
+  }
+  return endpoint.toString();
+}
+
+async function fetchSiteReports(site, reports, limit) {
+  const response = await fetch(buildReportsEndpoint(site.siteUrl, reports, limit), {
+    method: 'GET',
+    headers: {
+      'X-FP-Client-Secret': site.secret,
+      Accept: 'application/json',
+    },
+  });
+
+  const bodyText = await response.text();
+  let payload;
+  try {
+    payload = bodyText ? JSON.parse(bodyText) : {};
+  } catch (error) {
+    throw new Error(`Risposta non JSON da ${site.name}: ${bodyText.slice(0, 400)}`);
+  }
+
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || response.statusText;
+    throw new Error(`HTTP ${response.status} da ${site.name}: ${message}`);
+  }
+
+  return payload;
+}
+
 const sites = readSitesConfig();
 const server = new McpServer({
   name: 'fp-remote-bridge',
@@ -165,6 +202,33 @@ server.tool(
         {
           type: 'text',
           text: JSON.stringify(payload.client_js || payload, null, 2),
+        },
+      ],
+    };
+  },
+);
+
+server.tool(
+  'fp_get_site_reports',
+  'Legge report mirati read-only: lacune SEO (meta mancanti) e contenuti senza traduzione WPML in inglese.',
+  {
+    site_name: z.string().optional(),
+    reports: z.array(z.enum(['seo_gaps', 'wpml_gaps'])).optional(),
+    limit: z.number().int().min(1).max(200).optional(),
+  },
+  async ({ site_name, reports, limit }) => {
+    const site = resolveSite(sites, site_name);
+    const payload = await fetchSiteReports(
+      site,
+      reports && reports.length > 0 ? reports : ['seo_gaps', 'wpml_gaps'],
+      limit || 50,
+    );
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(payload, null, 2),
         },
       ],
     };
