@@ -2,6 +2,12 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.5.0] - 2026-05-13
+### Added
+- Endpoint read-only `GET /wp-json/fp-remote-bridge/v1/site-intelligence` per diagnostica remota (salute sito, log PHP, performance, SEO, errori browser).
+- Raccolta errori JavaScript, promise rejection e `console.error` da frontend e admin con ingest AJAX rate-limited.
+- Sezione impostazioni **Diagnostica remota (Cursor)** e server MCP di esempio in `cursor-mcp/`.
+
 ## [1.4.2] - 2026-04-05
 ### Fixed
 - **marketing-metrics**: `normalizeDateKey()` non rielabora più le chiavi già in formato `Y-m-d` (Bio/CTA). Con fuso orario del server divers da UTC, `strtotime`+`gmdate` poteva spostare il giorno di un’unità e i clic risultavano **fuori periodo** nel report DMS (spesso 0).

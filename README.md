@@ -2,7 +2,7 @@
 
 Connettore per siti remoti che ricevono pubblicazioni, dati SEO e aggiornamenti plugin dall'ecosistema FP (FP Publisher, FP Updater).
 
-[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
 
 ---
@@ -68,6 +68,12 @@ FP-Remote-Bridge/
 | Endpoint | Metodo | Auth | Descrizione |
 |----------|--------|------|-------------|
 | `/wp-json/fp-publisher/v1/wpml-link-translation` | POST | App Password | Collega una traduzione WPML all'articolo originale. Body: `original_id`, `translation_id`, `language_code`, `post_type` (opzionale). |
+
+| `/wp-json/fp-remote-bridge/v1/marketing-metrics` | GET | Secret Master | Metriche CTA/Bio per FP DMS |
+| `/wp-json/fp-remote-bridge/v1/site-intelligence` | GET | Secret Master | Snapshot diagnostico (salute, log PHP, performance, SEO, errori JS/console) |
+
+### Cursor MCP
+Nella cartella `cursor-mcp/` trovi un server MCP di esempio per leggere `site-intelligence` da Cursor. Configura `FP_SITE_URL` e `FP_BRIDGE_SECRET` (stesso secret Master del sito client) oppure `FP_SITES_JSON` per più siti.
 
 ### Autenticazione
 Tutti gli endpoint usano **WordPress Application Passwords**. Il Master configura le credenziali nel pannello FP Updater.

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fp-remote-bridge": {
+      "command": "node",
+      "args": [
+        "C:/Users/franc/OneDrive/Desktop/FP-Remote-Bridge/cursor-mcp/index.mjs"
+      ],
+      "env": {
+        "FP_SITE_URL": "https://esempio-cliente.it",
+        "FP_BRIDGE_SECRET": "inserisci-secret-master",
+        "FP_SITE_NAME": "Cliente esempio"
+      }
+    }
+  }
+}

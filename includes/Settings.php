@@ -114,6 +114,16 @@ class Settings
             'default' => true,
             'sanitize_callback' => 'rest_sanitize_boolean',
         ]);
+        register_setting('fp_remote_bridge_settings', Diagnostics\DiagnosticsSettings::OPTION_CLIENT_ERRORS, [
+            'type' => 'boolean',
+            'default' => true,
+            'sanitize_callback' => 'rest_sanitize_boolean',
+        ]);
+        register_setting('fp_remote_bridge_settings', Diagnostics\DiagnosticsSettings::OPTION_CAPTURE_CONSOLE, [
+            'type' => 'boolean',
+            'default' => true,
+            'sanitize_callback' => 'rest_sanitize_boolean',
+        ]);
     }
 
     public static function handle_manual_sync(): void
@@ -175,6 +185,9 @@ class Settings
         $backup_interval = get_option(BackupSync::OPTION_BACKUP_INTERVAL, 'daily');
         $backup_client_id = get_option(BackupSync::OPTION_BACKUP_CLIENT_ID, '');
         $include_uploads = get_option(BackupService::OPTION_INCLUDE_UPLOADS, true);
+        $diag_client_errors = get_option(Diagnostics\DiagnosticsSettings::OPTION_CLIENT_ERRORS, true);
+        $diag_capture_console = get_option(Diagnostics\DiagnosticsSettings::OPTION_CAPTURE_CONSOLE, true);
+        $site_intelligence_url = rest_url('fp-remote-bridge/v1/site-intelligence');
         ?>
         <div class="wrap fp-bridge-wrap fpbridge-admin-page">
             <h1 class="screen-reader-text"><?php echo esc_html(get_admin_page_title()); ?></h1>
@@ -339,6 +352,55 @@ class Settings
                                    class="regular-text" placeholder="<?php echo esc_attr(parse_url(site_url(), PHP_URL_HOST) ?: 'client'); ?>" />
                             <p class="description">
                                 <?php esc_html_e('Opzionale. Usato per organizzare i backup sul Master e identificare questo sito nella lista "Client collegati". Default: dominio del sito.', 'fp-remote-bridge'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                </div>
+
+                <div class="fp-bridge-card">
+                    <h2 class="fp-bridge-card-title">
+                        <span class="dashicons dashicons-chart-area"></span>
+                        <?php esc_html_e('Diagnostica remota (Cursor)', 'fp-remote-bridge'); ?>
+                    </h2>
+                    <p class="fp-bridge-card-desc"><?php esc_html_e('Espone uno snapshot read-only del sito verso Cursor tramite MCP e raccoglie errori JavaScript e console dal browser.', 'fp-remote-bridge'); ?></p>
+
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Raccolta errori browser', 'fp-remote-bridge'); ?></th>
+                        <td>
+                            <label>
+                                <input type="hidden" name="<?php echo esc_attr(Diagnostics\DiagnosticsSettings::OPTION_CLIENT_ERRORS); ?>" value="0" />
+                                <input type="checkbox"
+                                       name="<?php echo esc_attr(Diagnostics\DiagnosticsSettings::OPTION_CLIENT_ERRORS); ?>"
+                                       value="1" <?php checked((bool) $diag_client_errors); ?> />
+                                <?php esc_html_e('Registra errori JS, promise rejection e (opzionale) console.error da frontend e admin.', 'fp-remote-bridge'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Cattura console.error', 'fp-remote-bridge'); ?></th>
+                        <td>
+                            <label>
+                                <input type="hidden" name="<?php echo esc_attr(Diagnostics\DiagnosticsSettings::OPTION_CAPTURE_CONSOLE); ?>" value="0" />
+                                <input type="checkbox"
+                                       name="<?php echo esc_attr(Diagnostics\DiagnosticsSettings::OPTION_CAPTURE_CONSOLE); ?>"
+                                       value="1" <?php checked((bool) $diag_capture_console); ?> />
+                                <?php esc_html_e('Intercetta console.error oltre agli errori runtime non gestiti.', 'fp-remote-bridge'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Endpoint diagnostica', 'fp-remote-bridge'); ?></th>
+                        <td>
+                            <div class="fp-bridge-input-group">
+                                <input type="text" id="fp-remote-bridge-site-intelligence-url" value="<?php echo esc_attr($site_intelligence_url); ?>" readonly class="regular-text fp-bridge-url-input">
+                                <button type="button" class="button fp-bridge-btn-copy" data-copy-source="fp-remote-bridge-site-intelligence-url">
+                                    <span class="fp-bridge-copy-text"><?php esc_html_e('Copia', 'fp-remote-bridge'); ?></span>
+                                </button>
+                            </div>
+                            <p class="description">
+                                <?php esc_html_e('Autenticazione: header X-FP-Client-Secret con lo stesso secret Master configurato sopra.', 'fp-remote-bridge'); ?>
                             </p>
                         </td>
                     </tr>

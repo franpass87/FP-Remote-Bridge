@@ -40,6 +40,9 @@ class Plugin
         add_action('rest_api_init', [PluginUpdateEndpoint::class, 'register']);
         add_action('rest_api_init', [BackupEndpoint::class, 'register']);
         add_action('rest_api_init', [SyncEndpoint::class, 'register']);
+        add_action('rest_api_init', [Diagnostics\SiteIntelligenceEndpoint::class, 'register']);
+        Diagnostics\ClientErrorIngest::register();
+        Diagnostics\FrontendErrorCollector::register();
         Settings::init();
         MasterSync::init();
         BackupSync::init();
