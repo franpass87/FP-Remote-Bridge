@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.7.1] - 2026-05-13
+### Added
+- Report read-only `fp_ml_gaps` in `site-reports` per contenuti senza traduzione inglese gestita da FP Multilanguage (`_fpml_pair_id_en` / legacy `_fpml_pair_id`).
+
 ## [1.7.0] - 2026-05-13
 ### Added
 - Endpoint read-only `GET /wp-json/fp-remote-bridge/v1/site-reports` con report mirati `seo_gaps` e `wpml_gaps` (meta SEO mancanti e contenuti senza traduzione inglese WPML).

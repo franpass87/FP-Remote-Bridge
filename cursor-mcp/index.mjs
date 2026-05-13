@@ -210,17 +210,17 @@ server.tool(
 
 server.tool(
   'fp_get_site_reports',
-  'Legge report mirati read-only: lacune SEO (meta mancanti) e contenuti senza traduzione WPML in inglese.',
+  'Legge report mirati read-only: lacune SEO (meta mancanti), contenuti senza traduzione WPML e senza traduzione FP Multilanguage in inglese.',
   {
     site_name: z.string().optional(),
-    reports: z.array(z.enum(['seo_gaps', 'wpml_gaps'])).optional(),
+    reports: z.array(z.enum(['seo_gaps', 'wpml_gaps', 'fp_ml_gaps'])).optional(),
     limit: z.number().int().min(1).max(200).optional(),
   },
   async ({ site_name, reports, limit }) => {
     const site = resolveSite(sites, site_name);
     const payload = await fetchSiteReports(
       site,
-      reports && reports.length > 0 ? reports : ['seo_gaps', 'wpml_gaps'],
+      reports && reports.length > 0 ? reports : ['seo_gaps', 'wpml_gaps', 'fp_ml_gaps'],
       limit || 50,
     );
 

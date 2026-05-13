@@ -1,6 +1,6 @@
 <?php
 /**
- * Endpoint REST per report read-only mirati (SEO / WPML).
+ * Endpoint REST per report read-only mirati (SEO, WPML, FP Multilanguage).
  *
  * @package FP\RemoteBridge\Diagnostics
  */

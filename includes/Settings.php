@@ -409,7 +409,7 @@ class Settings
                                 <?php esc_html_e('Autenticazione: header X-FP-Client-Secret con lo stesso secret Master configurato sopra.', 'fp-remote-bridge'); ?>
                             </p>
                             <p class="description">
-                                <?php esc_html_e('Report mirati SEO/WPML:', 'fp-remote-bridge'); ?>
+                                <?php esc_html_e('Report mirati SEO, WPML e FP Multilanguage:', 'fp-remote-bridge'); ?>
                                 <code><?php echo esc_html($site_reports_url); ?></code>
                             </p>
                         </td>

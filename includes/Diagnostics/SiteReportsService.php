@@ -1,6 +1,6 @@
 <?php
 /**
- * Report read-only mirati (SEO e WPML) per siti remoti.
+ * Report read-only mirati (SEO, WPML e FP Multilanguage) per siti remoti.
  *
  * @package FP\RemoteBridge\Diagnostics
  */
@@ -54,7 +54,7 @@ final class SiteReportsService
     public static function build(array $reports, int $limit): array
     {
         $limit = max(1, min($limit, self::MAX_LIMIT));
-        $available = ['seo_gaps', 'wpml_gaps'];
+        $available = ['seo_gaps', 'wpml_gaps', 'fp_ml_gaps'];
         $requested = $reports === [] ? $available : array_values(array_intersect($reports, $available));
         if ($requested === []) {
             $requested = $available;
@@ -70,12 +70,17 @@ final class SiteReportsService
         ];
 
         foreach ($requested as $report) {
-            if ($report === 'seo_gaps') {
-                $payload['seo_gaps'] = self::build_seo_gaps_report($limit);
-                continue;
+            switch ($report) {
+                case 'seo_gaps':
+                    $payload['seo_gaps'] = self::build_seo_gaps_report($limit);
+                    break;
+                case 'wpml_gaps':
+                    $payload['wpml_gaps'] = self::build_wpml_gaps_report($limit);
+                    break;
+                case 'fp_ml_gaps':
+                    $payload['fp_ml_gaps'] = self::build_fp_ml_gaps_report($limit);
+                    break;
             }
-
-            $payload['wpml_gaps'] = self::build_wpml_gaps_report($limit);
         }
 
         return apply_filters('fp_remote_bridge_site_reports', $payload, $requested, $limit);
@@ -277,6 +282,119 @@ final class SiteReportsService
     }
 
     /**
+     * @param int $limit Numero massimo righe.
+     * @return array<string, mixed>
+     */
+    private static function build_fp_ml_gaps_report(int $limit): array
+    {
+        global $wpdb;
+
+        if (!self::is_fp_multilanguage_active()) {
+            return [
+                'fp_multilanguage_active' => false,
+                'target_language' => 'en',
+                'summary' => [
+                    'missing_translation' => 0,
+                ],
+                'items' => [],
+            ];
+        }
+
+        $targetLanguage = 'en';
+        $postTypes = self::get_scannable_post_types();
+        if ($postTypes === []) {
+            return [
+                'fp_multilanguage_active' => true,
+                'target_language' => $targetLanguage,
+                'summary' => [
+                    'missing_translation' => 0,
+                ],
+                'items' => [],
+            ];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($postTypes), '%s'));
+        $sql = "
+            SELECT p.ID, p.post_title, p.post_type
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->postmeta} is_translation
+                ON is_translation.post_id = p.ID
+                AND is_translation.meta_key = '_fpml_is_translation'
+            LEFT JOIN {$wpdb->postmeta} pair_lang
+                ON pair_lang.post_id = p.ID
+                AND pair_lang.meta_key = %s
+            LEFT JOIN {$wpdb->postmeta} pair_legacy
+                ON pair_legacy.post_id = p.ID
+                AND pair_legacy.meta_key = '_fpml_pair_id'
+            WHERE p.post_status = 'publish'
+              AND p.post_type IN ($placeholders)
+              AND (is_translation.meta_value IS NULL OR is_translation.meta_value <> '1')
+              AND (
+                    pair_lang.meta_id IS NULL
+                    OR pair_lang.meta_value = ''
+                    OR pair_lang.meta_value = '0'
+              )
+              AND (
+                    pair_legacy.meta_id IS NULL
+                    OR pair_legacy.meta_value = ''
+                    OR pair_legacy.meta_value = '0'
+              )
+            ORDER BY p.post_modified_gmt DESC
+        ";
+
+        $pairMetaKey = '_fpml_pair_id_' . $targetLanguage;
+        $params = array_merge([$pairMetaKey], $postTypes);
+        $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
+        if (!is_array($rows)) {
+            $rows = [];
+        }
+
+        $items = [];
+        $missingCount = 0;
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $postId = (int) ($row['ID'] ?? 0);
+            if ($postId <= 0) {
+                continue;
+            }
+
+            if (function_exists('fpml_get_translation_id')) {
+                $translationId = (int) fpml_get_translation_id($postId, $targetLanguage);
+                if ($translationId > 0) {
+                    continue;
+                }
+            }
+
+            ++$missingCount;
+            if (count($items) >= $limit) {
+                continue;
+            }
+
+            $items[] = [
+                'id' => $postId,
+                'title' => (string) ($row['post_title'] ?? ''),
+                'post_type' => (string) ($row['post_type'] ?? ''),
+                'permalink' => get_permalink($postId) ?: '',
+                'edit_url' => get_edit_post_link($postId, 'raw') ?: '',
+                'target_language' => $targetLanguage,
+            ];
+        }
+
+        return [
+            'fp_multilanguage_active' => true,
+            'target_language' => $targetLanguage,
+            'summary' => [
+                'missing_translation' => $missingCount,
+            ],
+            'items' => $items,
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     private static function get_scannable_post_types(): array
@@ -337,6 +455,22 @@ final class SiteReportsService
         }
 
         return false;
+    }
+
+    /**
+     * @return bool
+     */
+    private static function is_fp_multilanguage_active(): bool
+    {
+        if (defined('FPML_RUNTIME_BOOTSTRAPPED')) {
+            return true;
+        }
+
+        if (function_exists('fpml_get_translation_id') || function_exists('fpml_get_enabled_languages')) {
+            return true;
+        }
+
+        return class_exists('FP\\Multilanguage\\Core\\Plugin');
     }
 
     /**
