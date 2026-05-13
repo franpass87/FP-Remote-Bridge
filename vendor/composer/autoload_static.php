@@ -29,6 +29,7 @@ class ComposerStaticInite9015d6c5f32f144901b5c86503d3597
         'FP\\RemoteBridge\\Diagnostics\\ClientErrorIngest' => __DIR__ . '/../..' . '/includes/Diagnostics/ClientErrorIngest.php',
         'FP\\RemoteBridge\\Diagnostics\\ClientErrorStore' => __DIR__ . '/../..' . '/includes/Diagnostics/ClientErrorStore.php',
         'FP\\RemoteBridge\\Diagnostics\\DiagnosticsSettings' => __DIR__ . '/../..' . '/includes/Diagnostics/DiagnosticsSettings.php',
+        'FP\\RemoteBridge\\Diagnostics\\FpPerformanceSignals' => __DIR__ . '/../..' . '/includes/Diagnostics/FpPerformanceSignals.php',
         'FP\\RemoteBridge\\Diagnostics\\FrontendErrorCollector' => __DIR__ . '/../..' . '/includes/Diagnostics/FrontendErrorCollector.php',
         'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceEndpoint' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteIntelligenceEndpoint.php',
         'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceService' => __DIR__ . '/../..' . '/includes/Diagnostics/SiteIntelligenceService.php',

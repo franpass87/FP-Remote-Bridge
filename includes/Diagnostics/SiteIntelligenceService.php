@@ -121,20 +121,14 @@ final class SiteIntelligenceService
             'fp_performance_active' => defined('FP_PERF_SUITE_VERSION'),
             'fp_performance_version' => defined('FP_PERF_SUITE_VERSION') ? (string) FP_PERF_SUITE_VERSION : '',
             'signals' => [],
+            'signals_source' => 'normalized_options',
         ];
 
         if (!defined('FP_PERF_SUITE_VERSION')) {
             return $section;
         }
 
-        $section['signals'] = [
-            'page_cache_enabled' => (bool) get_option('fp_ps_page_cache_enabled', false),
-            'object_cache_enabled' => (bool) get_option('fp_ps_object_cache_enabled', false),
-            'lazy_load_enabled' => (bool) get_option('fp_ps_lazy_load_enabled', false),
-            'minify_css_enabled' => (bool) get_option('fp_ps_minify_css', false),
-            'minify_js_enabled' => (bool) get_option('fp_ps_minify_js', false),
-            'cdn_enabled' => (bool) get_option('fp_ps_cdn_enabled', false),
-        ];
+        $section['signals'] = FpPerformanceSignals::collect();
 
         $detectedScripts = get_transient('fp_ps_detected_scripts');
         if (is_array($detectedScripts)) {

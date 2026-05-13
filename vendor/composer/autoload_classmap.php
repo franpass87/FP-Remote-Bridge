@@ -14,6 +14,7 @@ return array(
     'FP\\RemoteBridge\\Diagnostics\\ClientErrorIngest' => $baseDir . '/includes/Diagnostics/ClientErrorIngest.php',
     'FP\\RemoteBridge\\Diagnostics\\ClientErrorStore' => $baseDir . '/includes/Diagnostics/ClientErrorStore.php',
     'FP\\RemoteBridge\\Diagnostics\\DiagnosticsSettings' => $baseDir . '/includes/Diagnostics/DiagnosticsSettings.php',
+    'FP\\RemoteBridge\\Diagnostics\\FpPerformanceSignals' => $baseDir . '/includes/Diagnostics/FpPerformanceSignals.php',
     'FP\\RemoteBridge\\Diagnostics\\FrontendErrorCollector' => $baseDir . '/includes/Diagnostics/FrontendErrorCollector.php',
     'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceEndpoint' => $baseDir . '/includes/Diagnostics/SiteIntelligenceEndpoint.php',
     'FP\\RemoteBridge\\Diagnostics\\SiteIntelligenceService' => $baseDir . '/includes/Diagnostics/SiteIntelligenceService.php',

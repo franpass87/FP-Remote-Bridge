@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.6.1] - 2026-05-13
+### Fixed
+- `site-intelligence` / diagnostica performance: segnali FP Performance letti dalle opzioni correnti (`fp_ps_page_cache_settings`, `fp_ps_assets`, `fp_ps_lazy_load`, `fp_ps_external_cache`, ecc.) con fallback legacy, invece dei flag obsoleti sempre falsi.
+
 ## [1.6.0] - 2026-05-13
 ### Added
 - Pagina admin **Impostazioni → FP Bridge Diagnostica** con KPI, errori JS/console, segnali SEO, performance FP e log PHP.
