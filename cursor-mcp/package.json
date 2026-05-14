@@ -5,7 +5,8 @@
   "type": "module",
   "description": "MCP server per leggere diagnostica siti WordPress remoti via FP Remote Bridge.",
   "scripts": {
-    "start": "node index.mjs"
+    "start": "node index.mjs",
+    "sync-mcp": "node sync-mcp-from-manager.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

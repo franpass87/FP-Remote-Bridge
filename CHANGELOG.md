@@ -2,6 +2,10 @@
 
 All notable changes to FP Remote Bridge will be documented in this file.
 
+## [1.7.2] - 2026-05-14
+### Added
+- Script `cursor-mcp/sync-mcp-from-manager.mjs` per allineare `~/.cursor/mcp.json` ai client FP Remote Bridge del Master FP Updater.
+
 ## [1.7.1] - 2026-05-13
 ### Added
 - Report read-only `fp_ml_gaps` in `site-reports` per contenuti senza traduzione inglese gestita da FP Multilanguage (`_fpml_pair_id_en` / legacy `_fpml_pair_id`).

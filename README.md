@@ -2,7 +2,7 @@
 
 Connettore per siti remoti che ricevono pubblicazioni, dati SEO e aggiornamenti plugin dall'ecosistema FP (FP Publisher, FP Updater).
 
-[![Version](https://img.shields.io/badge/version-1.7.1-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
+[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](https://github.com/franpass87/FP-Remote-Bridge)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
 
 ---
@@ -77,7 +77,9 @@ FP-Remote-Bridge/
 Da **Impostazioni → FP Bridge Diagnostica** puoi leggere la stessa panoramica esposta a Cursor (errori browser, log PHP, SEO homepage, segnali FP Performance) senza aprire l’IDE.
 
 ### Cursor MCP
-Nella cartella `cursor-mcp/` trovi un server MCP di esempio per leggere `site-intelligence` da Cursor. Configura `FP_SITE_URL` e `FP_BRIDGE_SECRET` (stesso secret Master del sito client) oppure `FP_SITES_JSON` per più siti.
+Nella cartella `cursor-mcp/` trovi un server MCP di esempio per leggere `site-intelligence` e `site-reports` da Cursor. Configura `FP_SITE_URL` e `FP_BRIDGE_SECRET` (stesso secret Master del sito client) oppure `FP_SITES_JSON` per più siti.
+
+Per allineare `~/.cursor/mcp.json` al registro **Client collegati** del Master FP Updater (`manager.francescopasseri.com`), imposta `FP_BRIDGE_SECRET` e lancia `npm run sync-mcp` in `cursor-mcp/` (vedi `env.example`). Siti lab extra: `FP_MCP_EXTRA_SITES_JSON`.
 
 ### Autenticazione
 Tutti gli endpoint usano **WordPress Application Passwords**. Il Master configura le credenziali nel pannello FP Updater.
