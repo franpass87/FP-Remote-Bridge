@@ -96,7 +96,11 @@ function parseExtraSites(rawValue) {
   }
 
   if (!Array.isArray(parsed)) {
-    throw new Error('FP_MCP_EXTRA_SITES_JSON deve essere un array JSON.');
+    if (parsed && typeof parsed === 'object') {
+      parsed = [parsed];
+    } else {
+      throw new Error('FP_MCP_EXTRA_SITES_JSON deve essere un array JSON.');
+    }
   }
 
   const sites = [];
